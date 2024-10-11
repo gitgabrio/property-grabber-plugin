@@ -70,7 +70,7 @@ public class ParserHelper {
 
     private static void populateProperties(FieldDeclaration field, StringBuilder toPopulate) {
         logger.debug("populateProperties {} {}", field, toPopulate);
-        toPopulate.append("\r\n");
+        toPopulate.append(System.lineSeparator());
         toPopulate.append(String.format(PROPERTY_FORMAT,  field.getVariable(0).getInitializer().get().asStringLiteralExpr().getValue(),
                 field.getComment().get().getContent().trim().replace("*", "")));
     }

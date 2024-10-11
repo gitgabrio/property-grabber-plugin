@@ -16,6 +16,8 @@
     <version.maven.core>3.9.6</version.maven.core>
     <version.maven.plugin-annotations>3.9.0</version.maven.plugin-annotations>
     <version.javaparser>3.25.8</version.javaparser>
+    <version.junit>5.11.2</version.junit>
+    <version.surefire>3.5.0</version.surefire>
   </properties>
 
   <dependencyManagement>
@@ -40,6 +42,13 @@
         <artifactId>javaparser-core</artifactId>
         <version>${version.javaparser}</version>
       </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${version.junit}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -62,6 +71,12 @@
     <dependency>
       <groupId>com.github.javaparser</groupId>
       <artifactId>javaparser-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -118,6 +133,10 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${version.surefire}</version>
       </plugin>
     </plugins>
   </build>
