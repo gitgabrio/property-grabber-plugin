@@ -29,14 +29,59 @@ class ParserHelperTest {
     @Test
     void getProperties() {
         var expected = """
-                
-                kogito.addon.tracing.decision.kafka.bootstrapAddress ->  (string) kafka bootstrap server address
-                kogito.addon.tracing.decision.kafka.topic.name ->  (string) name of the decision topic; default to kogito-tracing-decision
-                kogito.addon.tracing.decision.kafka.topic.partitions ->  (integer) number of decision topic partitions; default to 1
-                kogito.addon.tracing.decision.kafka.topic.replicationFactor ->  (integer) number of decision topic replication factor; default to 1
-                kogito.addon.tracing.decision.asyncEnabled ->  (boolean) enable/disable asynchronous collection of decision events; default to true""";
+               Config Name: "kogito.addon.tracing.decision.kafka.bootstrapAddress" | Description: kafka bootstrap server address | Type: string | Default:\s
+               Config Name: "kogito.addon.tracing.decision.kafka.topic.name" | Description: name of the decision topic | Type: String | Default: Value of `kogito-tracing-decision`
+               Config Name: "kogito.addon.tracing.decision.kafka.topic.partitions" | Description: number of decision topic partitions | Type: integer | Default: 1
+               Config Name: "kogito.addon.tracing.decision.kafka.topic.replicationFactor" | Description: number of decision topic replication factor | Type: integer | Default: 1
+               Config Name: "kogito.addon.tracing.decision.asyncEnabled" | Description: enable/disable asynchronous collection of decision events | Type: boolean | Default: true
+               """;
 
         var result = ParserHelper.getProperties(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void getPropertiesAsAdoc() {
+        var expected = """
+                a| `"kogito.addon.tracing.decision.kafka.bootstrapAddress"`
+                [.description]
+                --
+                kafka bootstrap server address
+                --
+                | string
+                |\s
+                a| `"kogito.addon.tracing.decision.kafka.topic.name"`
+                [.description]
+                --
+                name of the decision topic
+                --
+                | String
+                | Value of `kogito-tracing-decision`
+                a| `"kogito.addon.tracing.decision.kafka.topic.partitions"`
+                [.description]
+                --
+                number of decision topic partitions
+                --
+                | integer
+                | 1
+                a| `"kogito.addon.tracing.decision.kafka.topic.replicationFactor"`
+                [.description]
+                --
+                number of decision topic replication factor
+                --
+                | integer
+                | 1
+                a| `"kogito.addon.tracing.decision.asyncEnabled"`
+                [.description]
+                --
+                enable/disable asynchronous collection of decision events
+                --
+                | boolean
+                | true
+                """;
+
+        var result = ParserHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
 
         assertEquals(expected, result);
     }

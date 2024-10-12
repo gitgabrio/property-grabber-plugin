@@ -32,6 +32,8 @@ public class BasicJavaClassWithFields {
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_BOOTSTRAPADDRESS = "kogito.addon.tracing.decision.kafka.bootstrapAddress";
     /**
      * (string) name of the decision topic; default to kogito-tracing-decision
+     * @type String
+     * @default Value of `kogito-tracing-decision`
      */
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_TOPIC_NAME = "kogito.addon.tracing.decision.kafka.topic.name";
     /**
