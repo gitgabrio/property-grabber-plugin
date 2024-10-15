@@ -83,6 +83,7 @@ public class ParserHelper {
                     .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
             return toPopulate.toString();
         } catch (Exception e) {
+            logger.error("Error while parsing file: {}", javaCode);
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
@@ -99,14 +100,12 @@ public class ParserHelper {
                         fieldDeclaration.getVariable(0).getInitializer().get() instanceof StringLiteralExpr)
                 .filter(fieldDeclaration -> fieldDeclaration.getComment().isPresent())
                         .forEach(fldDclr -> populateProperties(fldDclr, toPopulate, propertyPattern));
-
-
     }
 
     private static void populateProperties(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
         logger.debug("populateProperties {} {}", field, toPopulate);
 
-        var name = field.getVariable(0).getInitializer().orElse(new StringLiteralExpr()).toString();
+        var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No initializer: " + field));
         var type = "";
         var defaultValue = "";
 
