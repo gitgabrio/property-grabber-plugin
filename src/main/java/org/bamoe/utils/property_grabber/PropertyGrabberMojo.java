@@ -45,6 +45,9 @@ public class PropertyGrabberMojo extends AbstractMojo {
     @Parameter(readonly = true, defaultValue = "${project}")
     private MavenProject mavenProject;
 
+    @Parameter(defaultValue = "asciidoc")
+    private String outputType;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         logger.info("PropertyGrabber {} {}", mavenProject.getGroupId(), mavenProject.getArtifactId());
@@ -81,7 +84,15 @@ public class PropertyGrabberMojo extends AbstractMojo {
 
     private void readJavaClass(Path entry) throws IOException {
         logger.debug("readJavaClass {}", entry);
-        String properties = ParserHelper.getProperties(entry);
+        var properties = "";
+
+        // If we get anything besides "asciidoc" for the output type, use the text based output
+        if (!"asciidoc".equals(outputType)) {
+            properties = ParserHelper.getProperties(entry);
+        } else {
+            properties = ParserHelper.getPropertiesAsAdoc(entry);
+        }
+
         logger.debug("properties {}", properties);
         if (!properties.isEmpty()) {
             printProperties(properties);
