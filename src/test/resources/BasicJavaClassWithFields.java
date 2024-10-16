@@ -51,4 +51,14 @@ public class BasicJavaClassWithFields {
      */
     public static final String KOGITO_ADDON_TRACING_DECISION_ASYNC_ENABLED = "kogito.addon.tracing.decision.asyncEnabled";
 
+    public static final String WITHOUT_JAVA_DOC = "kogito.addon.tracing.decision.asyncEnabled";
+
+    /**
+     * This is not an application property
+     */
+    public static final String WITHOUT_INITIALIZER;
+     static {
+         WITHOUT_INITIALIZER = "initializer";
+    }
+
 }

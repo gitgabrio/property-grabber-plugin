@@ -19,14 +19,15 @@
 package org.bamoe.utils.property_grabber;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.javadoc.JavadocBlockTag;
 import org.slf4j.Logger;
@@ -49,13 +50,13 @@ public class ParserHelper {
      * | [default]
      */
     private static final String ADOC_PROPERTY_FORMAT = """
-    a| `%s`
-    [.description]
-    --
-    %s
-    --
-    | %s
-    | %s""";
+            a| `%s`
+            [.description]
+            --
+            %s
+            --
+            | %s
+            | %s""";
 
     static {
         StaticJavaParser.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
@@ -67,6 +68,7 @@ public class ParserHelper {
 
     /**
      * Get the information about a configuration option, but formatted for an Asciidoc table.
+     *
      * @param javaCode Path to a Java source file.
      * @return All configuration properties within the specified Java source file
      */
@@ -76,12 +78,20 @@ public class ParserHelper {
 
     private static String getProperties(Path javaCode, String propertyPattern) {
         logger.debug("getProperties {}", javaCode);
+        CompilationUnit compilationUnit = getCompilationUnit(javaCode);
+        StringBuilder toPopulate = new StringBuilder();
+        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
+                .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
+        return toPopulate.toString();
+    }
+
+    /*
+        Default access modifier for testing purpose
+    */
+    static CompilationUnit getCompilationUnit(Path javaCode) {
+        logger.debug("getCompilationUnit {}", javaCode);
         try {
-            CompilationUnit compilationUnit = StaticJavaParser.parse(javaCode);
-            StringBuilder toPopulate = new StringBuilder();
-            compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
-                    .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
-            return toPopulate.toString();
+            return StaticJavaParser.parse(javaCode);
         } catch (Exception e) {
             logger.error("Error while parsing file: {}", javaCode);
             logger.error(e.getMessage(), e);
@@ -89,28 +99,37 @@ public class ParserHelper {
         }
     }
 
-    private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
-        logger.debug("populateProperties {} {}", node, toPopulate);
-        node.findAll(FieldDeclaration.class).stream()
+    /*
+        Default access modifier for testing purpose
+     */
+    static Collection<FieldDeclaration> getApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
+        logger.debug("getApplicationPropertyFields {}", node);
+        return node.findAll(FieldDeclaration.class).stream()
                 .filter(FieldDeclaration::isStatic)
                 .filter(FieldDeclaration::isPublic)
                 .filter(FieldDeclaration::isFinal)
                 .filter(fieldDeclaration -> fieldDeclaration.getVariables().size() == 1 &&
                         fieldDeclaration.getVariable(0).getInitializer().isPresent() &&
                         fieldDeclaration.getVariable(0).getInitializer().get() instanceof StringLiteralExpr)
-                .filter(fieldDeclaration -> fieldDeclaration.getComment().isPresent())
-                        .forEach(fldDclr -> populateProperties(fldDclr, toPopulate, propertyPattern));
+                .filter(fieldDeclaration -> fieldDeclaration.getJavadoc().isPresent())
+                .toList();
+    }
+
+    private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
+        logger.debug("populateProperties {} {}", node, toPopulate);
+        getApplicationPropertyFields(node)
+                .forEach(fldDclr -> populateProperties(fldDclr, toPopulate, propertyPattern));
     }
 
     private static void populateProperties(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
         logger.debug("populateProperties {} {}", field, toPopulate);
 
-        var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No initializer: " + field));
+        var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + field)).asStringLiteralExpr();
         var type = "";
         var defaultValue = "";
 
         // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
-        var javadoc = field.getJavadocComment().orElse(new JavadocComment()).parse();
+        var javadoc = field.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + field)).parse();
         var desc = javadoc.getDescription().toText();
 
         // Start the really brittle parsing of a JavaDoc comment like:
@@ -138,6 +157,6 @@ public class ParserHelper {
             }
         }
 
-        toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue)).append(System.lineSeparator());
+        toPopulate.append(String.format(propertyPattern, name.asString(), desc, type, defaultValue)).append(System.lineSeparator());
     }
 }   
