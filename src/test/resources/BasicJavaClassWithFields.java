@@ -61,4 +61,24 @@ public class BasicJavaClassWithFields {
          WITHOUT_INITIALIZER = "initializer";
     }
 
+    @IfBuildProperty(name = "quarkus.kogito.data-index.graphql.ui.always-include", stringValue = "true")
+    public String ifBuildProperty() {
+        return "anything";
+    }
+
+    @IfBuildProperty(name = Constants.MONITORING_RULE_USE_DEFAULT, stringValue = "true", enableIfMissing = true)
+    public String ifBuildPropertyFromConstant() {
+        return "anything";
+    }
+
+    @UnlessBuildProperty(name = "kogito.data-index.blocking", stringValue = "true")
+    public String unlessBuildProperty() {
+        return "anything";
+    }
+
+    @ConfigProperty(name = "kogito.jobs-service.url")
+    public String configProperty() {
+        return "anything";
+    }
+
 }

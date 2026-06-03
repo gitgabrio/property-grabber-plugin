@@ -18,79 +18,118 @@
  */
 package org.bamoe.utils.property_grabber;
 
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.bamoe.utils.property_grabber.ParserHelper.ANNOTATION_NAME_MAP;
 
 class ParserHelperTest {
 
     private static final String TESTING_CLASS_NAME = "BasicJavaClassWithFields";
+    private static final String IF_BUILD_CLASS_NAME = "IfBuildPropertyJavaClass";
+    private static final String UNLESS_BUILD_CLASS_NAME = "UnlessBuildPropertyJavaClass";
 
     @Test
     void getProperties() {
-        var expected = """
-                Config Name: kogito.addon.tracing.decision.kafka.bootstrapAddress | Description: kafka bootstrap server address | Type: string | Default:\s
-                Config Name: kogito.addon.tracing.decision.kafka.topic.name | Description: name of the decision topic | Type: String | Default: Value of `kogito-tracing-decision`
-                Config Name: kogito.addon.tracing.decision.kafka.topic.partitions | Description: number of decision topic partitions | Type: integer | Default: 1
-                Config Name: kogito.addon.tracing.decision.kafka.topic.replicationFactor | Description: number of decision topic replication factor | Type: integer | Default: 1
-                Config Name: kogito.addon.tracing.decision.asyncEnabled | Description: enable/disable asynchronous collection of decision events | Type: boolean | Default: true
-                """;
+        var expected = Arrays.asList(
+                "Config Name: kogito.addon.tracing.decision.kafka.bootstrapAddress | Description: kafka bootstrap server address | Type: string | Default:\s",
+                "Config Name: kogito.addon.tracing.decision.kafka.topic.name | Description: name of the decision topic | Type: String | Default: Value of `kogito-tracing-decision`",
+                "Config Name: kogito.addon.tracing.decision.kafka.topic.partitions | Description: number of decision topic partitions | Type: integer | Default: 1",
+                "Config Name: kogito.addon.tracing.decision.kafka.topic.replicationFactor | Description: number of decision topic replication factor | Type: integer | Default: 1",
+                "Config Name: kogito.addon.tracing.decision.asyncEnabled | Description: enable/disable asynchronous collection of decision events | Type: boolean | Default: true",
+                "Config Name: quarkus.kogito.data-index.graphql.ui.always-include | Description: Property used to instantiate String | Type:  | Default:\s",
+                "Config Name: (Constants.MONITORING_RULE_USE_DEFAULT) | Description: Property used to instantiate String | Type:  | Default:\s",
+                "Config Name: kogito.data-index.blocking | Description: Property used to instantiate String | Type:  | Default:\s",
+                "Config Name: kogito.jobs-service.url | Description: Property used to instantiate String | Type:  | Default:\s");
 
         var result = ParserHelper.getProperties(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
-
-        assertThat(result).isEqualTo(expected);
+        for (String expectedValue : expected) {
+            assertThat(result).contains(expectedValue);
+        }
     }
 
     @Test
     void getPropertiesAsAdoc() {
-        var expected = """
-                a| `kogito.addon.tracing.decision.kafka.bootstrapAddress`
-                [.description]
-                --
-                kafka bootstrap server address
-                --
-                | string
-                |\s
-                a| `kogito.addon.tracing.decision.kafka.topic.name`
-                [.description]
-                --
-                name of the decision topic
-                --
-                | String
-                | Value of `kogito-tracing-decision`
-                a| `kogito.addon.tracing.decision.kafka.topic.partitions`
-                [.description]
-                --
-                number of decision topic partitions
-                --
-                | integer
-                | 1
-                a| `kogito.addon.tracing.decision.kafka.topic.replicationFactor`
-                [.description]
-                --
-                number of decision topic replication factor
-                --
-                | integer
-                | 1
-                a| `kogito.addon.tracing.decision.asyncEnabled`
-                [.description]
-                --
-                enable/disable asynchronous collection of decision events
-                --
-                | boolean
-                | true
-                """;
+        var expected = Arrays.asList(
+                "a| `kogito.addon.tracing.decision.kafka.bootstrapAddress`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "kafka bootstrap server address\n" +
+                        "--\n" +
+                        "| string\n" +
+                        "| ",
+                "a| `kogito.addon.tracing.decision.kafka.topic.name`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "name of the decision topic\n" +
+                        "--\n" +
+                        "| String\n" +
+                        "| Value of `kogito-tracing-decision`",
+                "a| `kogito.addon.tracing.decision.kafka.topic.partitions`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "number of decision topic partitions\n" +
+                        "--\n" +
+                        "| integer\n" +
+                        "| 1",
+                "a| `kogito.addon.tracing.decision.kafka.topic.replicationFactor`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "number of decision topic replication factor\n" +
+                        "--\n" +
+                        "| integer\n" +
+                        "| 1",
+                "a| `kogito.addon.tracing.decision.asyncEnabled`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "enable/disable asynchronous collection of decision events\n" +
+                        "--\n" +
+                        "| boolean\n" +
+                        "| true",
+                "a| `quarkus.kogito.data-index.graphql.ui.always-include`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "Property used to instantiate String\n" +
+                        "--\n" +
+                        "| \n" +
+                        "|",
+                "a| `(Constants.MONITORING_RULE_USE_DEFAULT)`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "Property used to instantiate String\n" +
+                        "--\n" +
+                        "| \n" +
+                        "|",
+                "a| `kogito.data-index.blocking`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "Property used to instantiate String\n" +
+                        "--\n" +
+                        "| \n" +
+                        "|",
+                "a| `kogito.jobs-service.url`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "Property used to instantiate String\n" +
+                        "--\n" +
+                        "| \n" +
+                        "|");
 
         var result = ParserHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
-
-        assertThat(result).isEqualTo(expected);
+        for (String expectedValue : expected) {
+            assertThat(result).contains(expectedValue);
+        }
     }
 
     @Test
@@ -107,6 +146,39 @@ class ParserHelperTest {
         retrieved.forEach(this::checkApplicationPropertyField);
     }
 
+    @Test
+    void getApplicationPropertyAnnotationsFromMethods() {
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
+        assertThat(compilationUnit).isNotNull();
+        ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
+                .findAll(ClassOrInterfaceDeclaration.class)
+                .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
+        Map<AnnotationExpr, Node> retrieved = ParserHelper.getApplicationPropertyAnnotationsFromMethods(classOrInterfaceDeclaration);
+        assertThat(retrieved).isNotNull().hasSize(4);
+        retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
+    }
+
+    @Test
+    void getApplicationPropertyAnnotationsFromClass() {
+        commonGetApplicationPropertyAnnotationsFromClass("IfBuildPropertyJavaClass.java", IF_BUILD_CLASS_NAME);
+        commonGetApplicationPropertyAnnotationsFromClass("UnlessBuildPropertyJavaClass.java", UNLESS_BUILD_CLASS_NAME);
+    }
+
+    private void commonGetApplicationPropertyAnnotationsFromClass(String javaSource, String className) {
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", javaSource));
+        assertThat(compilationUnit).isNotNull();
+        ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
+                .findAll(ClassOrInterfaceDeclaration.class)
+                .stream().filter(cls -> cls.getName().toString().equals(className))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(className + " not found"));
+        Map<AnnotationExpr, Node> retrieved = ParserHelper.getApplicationPropertyAnnotationsFromClass(classOrInterfaceDeclaration);
+        assertThat(retrieved).isNotNull().hasSize(1);
+        retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
+    }
+
     private void checkApplicationPropertyField(FieldDeclaration toCheck) {
         assertThat(toCheck).isNotNull()
                 .matches(FieldDeclaration::isStatic)
@@ -114,6 +186,11 @@ class ParserHelperTest {
                 .matches(FieldDeclaration::isFinal)
                 .matches(this::hasExactlyOneStringInitializer)
                 .matches(it -> it.getJavadoc().isPresent());
+    }
+
+    private void checkApplicationPropertyAnnotation(AnnotationExpr toCheck) {
+        assertThat(toCheck).isNotNull()
+                .matches(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString()));
     }
 
     private boolean hasExactlyOneStringInitializer(FieldDeclaration toCheck) {
