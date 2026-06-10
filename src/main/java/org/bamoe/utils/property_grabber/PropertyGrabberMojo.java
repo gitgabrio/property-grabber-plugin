@@ -22,67 +22,63 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.InstantiationStrategy;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Mojo(name = "grab", defaultPhase = LifecyclePhase.PROCESS_SOURCES, threadSafe = true, instantiationStrategy = InstantiationStrategy.SINGLETON)
-public class PropertyGrabberMojo extends AbstractMojo {
+public class PropertyGrabberMojo extends AbstractPropertyMojo {
 
     private static final Logger logger = LoggerFactory.getLogger(PropertyGrabberMojo.class);
 
-    @Parameter(readonly = true, defaultValue = "${project}")
-    private MavenProject mavenProject;
+    //    @Parameter(readonly = true, defaultValue = "${project}")
+    //    private MavenProject mavenProject;
 
     @Parameter(defaultValue = "asciidoc")
     private String outputType;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        logger.info("PropertyGrabber {} {}", mavenProject.getGroupId(), mavenProject.getArtifactId());
-        logger.debug("Sources {}", mavenProject.getCompileSourceRoots());
-        try {
-            mavenProject.getCompileSourceRoots().forEach(this::iterateSourceDirectory);
-        } catch (Exception e) {
-            throw new MojoFailureException("Failed to iterate source directory", e);
-        }
+        parentExecute("PropertyGrabber");
+        //        logger.info("PropertyGrabber {} {}", mavenProject.getGroupId(), mavenProject.getArtifactId());
+        //        logger.debug("Sources {}", mavenProject.getCompileSourceRoots());
+        //        try {
+        //            mavenProject.getCompileSourceRoots().forEach(this::iterateSourceDirectory);
+        //        } catch (Exception e) {
+        //            throw new MojoFailureException("Failed to iterate source directory", e);
+        //        }
     }
 
-    private void iterateSourceDirectory(String sourceDirectory) {
-        logger.debug("iterateSourceDirectory {}", sourceDirectory);
-        Path path = Path.of(sourceDirectory);
-        if (path.toFile().exists()) {
-            iterateSourceDirectory(path);
-        }
-    }
+    //    private void iterateSourceDirectory(String sourceDirectory) {
+    //        logger.debug("iterateSourceDirectory {}", sourceDirectory);
+    //        Path path = Path.of(sourceDirectory);
+    //        if (path.toFile().exists()) {
+    //            iterateSourceDirectory(path);
+    //        }
+    //    }
 
-    private void iterateSourceDirectory(Path sourceDirectory) {
-        logger.debug("iterateSourceDirectory {}", sourceDirectory);
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sourceDirectory)) {
-            for (Path entry : stream) {
-                if (Files.isDirectory(entry)) {
-                    iterateSourceDirectory(entry);
-                } else if (Files.isRegularFile(entry) && entry.getFileName().toString().endsWith(".java")) {
-                    readJavaClass(entry);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    //    private void iterateSourceDirectory(Path sourceDirectory) {
+    //        logger.debug("iterateSourceDirectory {}", sourceDirectory);
+    //        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sourceDirectory)) {
+    //            for (Path entry : stream) {
+    //                if (Files.isDirectory(entry)) {
+    //                    iterateSourceDirectory(entry);
+    //                } else if (Files.isRegularFile(entry) && entry.getFileName().toString().endsWith(".java")) {
+    //                    readJavaClass(entry);
+    //                }
+    //            }
+    //        } catch (IOException e) {
+    //            throw new RuntimeException(e);
+    //        }
+    //    }
 
-    private void readJavaClass(Path entry) throws IOException {
+    void readJavaClass(Path entry) throws IOException {
         logger.debug("readJavaClass {}", entry);
         var properties = "";
 

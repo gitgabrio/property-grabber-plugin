@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+import io.quarkus.arc.properties.IfBuildProperty;
+
 @IfBuildProperty(name = "quarkus.kogito.data-index.graphql.ui.always-include", stringValue = "true")
 public class IfBuildPropertyJavaClass {
 

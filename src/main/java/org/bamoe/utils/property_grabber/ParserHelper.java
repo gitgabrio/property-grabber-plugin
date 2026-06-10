@@ -18,25 +18,35 @@
  */
 package org.bamoe.utils.property_grabber;
 
+import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.javadoc.JavadocBlockTag;
+import com.github.javaparser.printer.DefaultPrettyPrinter;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
+import java.io.BufferedInputStream;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.Writer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-
-import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
-import com.github.javaparser.javadoc.JavadocBlockTag;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,11 +64,15 @@ public class ParserHelper {
             "UnlessBuildProperty", "name",
             "ConfigProperty", "name");
 
-/*    *//**
+    /*    */
+    /**
      * Map of the annotation name and its "type" attribute.
      *//*
     private static final Map<String, String> ANNOTATION_TYPE_MAP = Map.of("IfBuildProperty", "name",
             "UnlessBuildProperty", "name");*/
+
+    static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
+    static final String KIE_PROPERTY_IMPORT = "org.kie." + KIE_PROPERTY_ANNOTATION;
 
     /**
      * Asciidoc format for a single configuration row in a table.
@@ -97,13 +111,18 @@ public class ParserHelper {
         return getProperties(javaCode, ADOC_PROPERTY_FORMAT);
     }
 
-    private static String getProperties(Path javaCode, String propertyPattern) {
-        logger.debug("getProperties {}", javaCode);
+    public static void annotateProperties(Path javaCode) {
+        logger.debug("annotateProperties {}", javaCode);
         CompilationUnit compilationUnit = getCompilationUnit(javaCode);
-        StringBuilder toPopulate = new StringBuilder();
-        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
-                .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
-        return toPopulate.toString();
+        annotateProperties(compilationUnit);
+        try {
+            String prettyPrintedCode = compilationUnit.toString();
+            writeUpdatedCode(javaCode, prettyPrintedCode);
+        } catch (Exception e) {
+            logger.error("Error while writing file: {}", javaCode);
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
     }
 
     /*
@@ -147,6 +166,9 @@ public class ParserHelper {
         return toReturn;
     }
 
+    /*
+  Default access modifier for testing purpose
+*/
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromMethods(Node node) {
         return node.findAll(MethodDeclaration.class).stream()
                 .filter(methodDeclaration -> methodDeclaration.getAnnotations().stream()
@@ -160,6 +182,9 @@ public class ParserHelper {
                 ));
     }
 
+    /*
+  Default access modifier for testing purpose
+*/
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromClass(Node node) {
         return node.findAll(ClassOrInterfaceDeclaration.class).stream()
                 .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getAnnotations().stream()
@@ -171,6 +196,66 @@ public class ParserHelper {
                                 .orElseThrow(() -> new IllegalArgumentException("No matching annotation: " + classOrInterfaceDeclaration)),
                         classOrInterfaceDeclaration -> classOrInterfaceDeclaration
                 ));
+    }
+
+    /*
+Default access modifier for testing purpose
+*/
+    static void annotateProperties(CompilationUnit compilationUnit) {
+        logger.debug("annotateProperties {}", compilationUnit);
+        List<ImportDeclaration> imports = compilationUnit.findAll(ImportDeclaration.class);
+        if (imports.stream().noneMatch(imprt -> imprt.getNameAsString().equals(KIE_PROPERTY_IMPORT))) {
+            addAnnotationImport(compilationUnit);
+        }
+        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
+                .forEach(ParserHelper::annotateProperties);
+    }
+
+    /*
+Default access modifier for testing purpose
+*/
+    static void addAnnotationImport(CompilationUnit compilationUnit) {
+        logger.debug("addAnnotationImport {}", compilationUnit);
+        compilationUnit.getImports().add(new ImportDeclaration(KIE_PROPERTY_IMPORT, false, false));
+    }
+
+    /*
+  Default access modifier for testing purpose
+*/
+    static void annotateProperties(ClassOrInterfaceDeclaration node) {
+        logger.debug("annotateProperties {}", node);
+        getApplicationPropertyFields(node)
+                .forEach(ParserHelper::annotateProperties);
+    }
+
+    /*
+  Default access modifier for testing purpose
+*/
+    static void annotateProperties(FieldDeclaration field) {
+        logger.debug("annotateProperties {}", field);
+        field.addAnnotation(KIE_PROPERTY_ANNOTATION);
+    }
+
+    private static void writeUpdatedCode(Path toOverWrite, String newContent) {
+        logger.debug("writeUpdatedCode {}", toOverWrite);
+        try (PrintWriter writer = new PrintWriter(toOverWrite.toFile())) {
+            writer.print("");
+            writer.print(newContent);
+            writer.flush();
+        } catch (Exception e) {
+            logger.error("Error while writing file: {}", toOverWrite);
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String getProperties(Path javaCode, String propertyPattern) {
+        logger.debug("getProperties {}", javaCode);
+        CompilationUnit compilationUnit = getCompilationUnit(javaCode);
+        StringBuilder toPopulate = new StringBuilder();
+        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
+                .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
+        return toPopulate.toString();
     }
 
     private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
@@ -234,49 +319,49 @@ public class ParserHelper {
         if (value instanceof StringLiteralExpr) {
             name = value.asStringLiteralExpr().asString();
         } else if (value instanceof FieldAccessExpr) {
-            name = String.format("(%s)",((FieldAccessExpr) value).toString());
+            name = String.format("(%s)", ((FieldAccessExpr) value).toString());
         }
         var type = "";
         var defaultValue = "";
         var desc = getDescription(node);
 
-//        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
-//        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
-//        var desc = javadoc.getDescription().toText();
+        //        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
+        //        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
+        //        var desc = javadoc.getDescription().toText();
 
-//        var name = annotation.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + annotation)).asStringLiteralExpr();
-//        var type = "";
-//        var defaultValue = "";
-//
-//        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
-//        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
-//        var desc = javadoc.getDescription().toText();
-//
-//        // Start the really brittle parsing of a JavaDoc comment like:
-//        // (integer) number of decision topic partitions; default to 1
-//        var pattern = Pattern.compile("^\\((?<type>\\w+)\\)\\s+(?<desc>[\\w\\s/]+)(?<defaultValue>.*)?$");
-//        var matcher = pattern.matcher(desc);
-//
-//        if (matcher.matches()) {
-//            type = matcher.group("type");
-//            desc = matcher.group("desc");
-//
-//            // Take the default value, and strip out the first part we don't need
-//            defaultValue = matcher.group("defaultValue").replace("; default to ", "");
-//        }
-//
-//        // If there are JavaDoc tags, use them instead of the regex
-//        if (!javadoc.getBlockTags().isEmpty()) {
-//            for (JavadocBlockTag tag : javadoc.getBlockTags()) {
-//                if (tag.getTagName().equals("type")) {
-//                    type = tag.getContent().getElements().get(0).toText(); // Should only be one element
-//                }
-//                if (tag.getTagName().equals("default")) {
-//                    defaultValue = tag.getContent().getElements().get(0).toText(); // Should only be one element
-//                }
-//            }
-//        }
-//
+        //        var name = annotation.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + annotation)).asStringLiteralExpr();
+        //        var type = "";
+        //        var defaultValue = "";
+        //
+        //        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
+        //        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
+        //        var desc = javadoc.getDescription().toText();
+        //
+        //        // Start the really brittle parsing of a JavaDoc comment like:
+        //        // (integer) number of decision topic partitions; default to 1
+        //        var pattern = Pattern.compile("^\\((?<type>\\w+)\\)\\s+(?<desc>[\\w\\s/]+)(?<defaultValue>.*)?$");
+        //        var matcher = pattern.matcher(desc);
+        //
+        //        if (matcher.matches()) {
+        //            type = matcher.group("type");
+        //            desc = matcher.group("desc");
+        //
+        //            // Take the default value, and strip out the first part we don't need
+        //            defaultValue = matcher.group("defaultValue").replace("; default to ", "");
+        //        }
+        //
+        //        // If there are JavaDoc tags, use them instead of the regex
+        //        if (!javadoc.getBlockTags().isEmpty()) {
+        //            for (JavadocBlockTag tag : javadoc.getBlockTags()) {
+        //                if (tag.getTagName().equals("type")) {
+        //                    type = tag.getContent().getElements().get(0).toText(); // Should only be one element
+        //                }
+        //                if (tag.getTagName().equals("default")) {
+        //                    defaultValue = tag.getContent().getElements().get(0).toText(); // Should only be one element
+        //                }
+        //            }
+        //        }
+        //
         toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue)).append(System.lineSeparator());
     }
 

@@ -18,21 +18,30 @@
  */
 package org.bamoe.utils.property_grabber;
 
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.expr.AnnotationExpr;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.bamoe.utils.property_grabber.ParserHelper.ANNOTATION_NAME_MAP;
+import static org.bamoe.utils.property_grabber.ParserHelper.KIE_PROPERTY_ANNOTATION;
+import static org.bamoe.utils.property_grabber.ParserHelper.KIE_PROPERTY_IMPORT;
 
 class ParserHelperTest {
 
@@ -133,6 +142,25 @@ class ParserHelperTest {
     }
 
     @Test
+    void annotateProperties() throws IOException {
+        Path javaCode = Path.of("src", "test", "resources", "BasicJavaClassWithFields.java");
+        Path backup = javaCode.resolveSibling("BasicJavaClassWithFields.java.bak");
+        // Deleting backup file if already exists
+        Files.deleteIfExists(backup);
+        // Backing up original file content to restore it after test
+        Files.copy(javaCode, backup);
+        ParserHelper.annotateProperties(javaCode);
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(javaCode);
+        commonCheckImportDeclaration(compilationUnit);
+        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
+                .forEach(this::commonCheckAnnotatedClassDeclaration);
+        // Restore original file content
+        Files.copy(backup, javaCode, StandardCopyOption.REPLACE_EXISTING);
+        // Deleting backup file
+        Files.deleteIfExists(backup);
+    }
+
+    @Test
     void getApplicationPropertyFields() {
         CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
         assertThat(compilationUnit).isNotNull();
@@ -166,6 +194,45 @@ class ParserHelperTest {
         commonGetApplicationPropertyAnnotationsFromClass("UnlessBuildPropertyJavaClass.java", UNLESS_BUILD_CLASS_NAME);
     }
 
+    @Test
+    void annotatePropertiesOnCompilationUnit() {
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
+        assertThat(compilationUnit).isNotNull();
+        ParserHelper.annotateProperties(compilationUnit);
+        commonCheckImportDeclaration(compilationUnit);
+        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
+                .forEach(this::commonCheckAnnotatedClassDeclaration);
+    }
+
+    @Test
+    void addAnnotationImport() {
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
+        ParserHelper.addAnnotationImport(compilationUnit);
+        commonCheckImportDeclaration(compilationUnit);
+    }
+
+    @Test
+    void annotatePropertiesOnClass() {
+        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", "BasicJavaClassWithFields.java"));
+        assertThat(compilationUnit).isNotNull();
+        ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
+                .findAll(ClassOrInterfaceDeclaration.class)
+                .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
+        ParserHelper.annotateProperties(classOrInterfaceDeclaration);
+        commonCheckAnnotatedClassDeclaration(classOrInterfaceDeclaration);
+    }
+
+    @Test
+    void annotatePropertiesOnFieldDeclaration() {
+        FieldDeclaration fieldDeclaration = new FieldDeclaration();
+        fieldDeclaration.setModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL);
+        fieldDeclaration.setVariables(NodeList.nodeList(new VariableDeclarator(StaticJavaParser.parseClassOrInterfaceType("String"), "test")));
+        ParserHelper.annotateProperties(fieldDeclaration);
+        commonCheckAnnotatedFieldDeclaration(fieldDeclaration);
+    }
+
     private void commonGetApplicationPropertyAnnotationsFromClass(String javaSource, String className) {
         CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", javaSource));
         assertThat(compilationUnit).isNotNull();
@@ -177,6 +244,22 @@ class ParserHelperTest {
         Map<AnnotationExpr, Node> retrieved = ParserHelper.getApplicationPropertyAnnotationsFromClass(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull().hasSize(1);
         retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
+    }
+
+    private void commonCheckImportDeclaration(CompilationUnit toCheck) {
+        assertThat(toCheck.findAll(ImportDeclaration.class)
+                .stream()
+                .anyMatch(importDeclaration -> KIE_PROPERTY_IMPORT.equals(importDeclaration.getNameAsString())))
+                .isTrue();
+    }
+
+    private void commonCheckAnnotatedClassDeclaration(ClassOrInterfaceDeclaration toCheck) {
+        Collection<FieldDeclaration> fieldDeclarations = ParserHelper.getApplicationPropertyFields(toCheck);
+        fieldDeclarations.forEach(this::commonCheckAnnotatedFieldDeclaration);
+    }
+
+    private void commonCheckAnnotatedFieldDeclaration(FieldDeclaration toCheck) {
+        assertThat(toCheck.getAnnotations().stream().anyMatch(annotationExpr -> KIE_PROPERTY_ANNOTATION.equals(annotationExpr.getNameAsString()))).isTrue();
     }
 
     private void checkApplicationPropertyField(FieldDeclaration toCheck) {
