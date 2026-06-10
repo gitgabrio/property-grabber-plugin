@@ -34,11 +34,6 @@ public class BasicJavaClassWithFields {
     /**
      * (string) kafka bootstrap server address
      */
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_BOOTSTRAPADDRESS = "kogito.addon.tracing.decision.kafka.bootstrapAddress";
 
     /**
@@ -46,41 +41,21 @@ public class BasicJavaClassWithFields {
      * @type String
      * @default Value of `kogito-tracing-decision`
      */
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_TOPIC_NAME = "kogito.addon.tracing.decision.kafka.topic.name";
 
     /**
      * (integer) number of decision topic partitions; default to 1
      */
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_TOPIC_PARTITIONS = "kogito.addon.tracing.decision.kafka.topic.partitions";
 
     /**
      * (integer) number of decision topic replication factor; default to 1
      */
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
     public static final String KOGITO_ADDON_TRACING_DECISION_KAFKA_TOPIC_REPLICATION_FACTOR = "kogito.addon.tracing.decision.kafka.topic.replicationFactor";
 
     /**
      * (boolean) enable/disable asynchronous collection of decision events; default to true
      */
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
-    @KieProperty()
     public static final String KOGITO_ADDON_TRACING_DECISION_ASYNC_ENABLED = "kogito.addon.tracing.decision.asyncEnabled";
 
     public static final String WITHOUT_JAVA_DOC = "kogito.addon.tracing.decision.asyncEnabled";
