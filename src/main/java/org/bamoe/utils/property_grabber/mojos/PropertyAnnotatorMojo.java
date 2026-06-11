@@ -27,7 +27,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import org.bamoe.utils.property_grabber.utils.ParserHelper;
+import org.bamoe.utils.property_grabber.utils.AnnotatorHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,7 @@ public class PropertyAnnotatorMojo extends AbstractPropertyMojo {
 
     void readJavaClass(Path entry) throws IOException {
         logger.debug("readJavaClass {}", entry);
-        ParserHelper.annotateProperties(entry);
+        AnnotatorHelper.annotateProperties(entry);
     }
 
 }

@@ -18,10 +18,7 @@
  */
 package org.bamoe.utils.property_grabber.utils;
 
-import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
@@ -34,7 +31,6 @@ import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.javadoc.JavadocBlockTag;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -48,34 +44,11 @@ import org.bamoe.utils.property_grabber.beans.AnnotationFieldBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ParserHelper {
+public class GrabberHelper {
 
-    private static final Logger logger = LoggerFactory.getLogger(ParserHelper.class);
+    private static final Logger logger = LoggerFactory.getLogger(GrabberHelper.class);
 
     private static final String TXT_PROPERTY_FORMAT = "Config Name: %s | Description: %s | Type: %s | Default: %s";
-
-    /**
-     * Map of the annotation name and its "name" attribute.
-     */
-    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_MAP = Map.of(
-            "IfBuildProperty", AnnotationFieldBean.builder("IfBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withActivationAttribute("stringValue").build(),
-            "UnlessBuildProperty", AnnotationFieldBean.builder("UnlessBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withDeactivationAttribute("stringValue").build(),
-            "ConfigProperty", AnnotationFieldBean.builder("ConfigProperty").withPropertyNameAttribute("name").build(),
-            "ConditionalOnProperty", AnnotationFieldBean.builder("ConditionalOnProperty").withPropertyNameAttribute("value").withDefaultValue("true").withActivationAttribute("havingValue").build(),
-            "Value", AnnotationFieldBean.builder("Value").build());
-
-    /**
-     * Map of the configuration class name and its "type" attribute.
-     */
-    private static final Map<String, AnnotationClassBean> ANNOTATION_TYPE_MAP = Map.of(
-            "ConfigurationProperties", AnnotationClassBean.builder("ConfigurationProperties")
-                    .withPropertyNameAnnotation("Name").withPropertyNameAttribute("value").withPrefixAttribute("prefix").build(),
-            "ConfigMapping", AnnotationClassBean.builder("ConfigMapping")
-                    .withPropertyNameAnnotation("WithName").withParentNameAnnotation("WithParentName").withDefaultValueAnnotation("WithDefault").withPrefixAttribute("prefix").build());
-
-    static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
-    static final String KIE_PROPERTY_IMPORT = "org.kie." + KIE_PROPERTY_ANNOTATION;
-
     /**
      * Asciidoc format for a single configuration row in a table.
      * a| [name]
@@ -95,9 +68,31 @@ public class ParserHelper {
             | %s
             | %s""";
 
-    static {
-        StaticJavaParser.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
-    }
+    /**
+     * Map of the annotation name and its "name" attribute.
+     */
+    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_MAP = Map.of(
+            "IfBuildProperty", AnnotationFieldBean.builder("IfBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withActivationAttribute("stringValue").build(),
+            "UnlessBuildProperty", AnnotationFieldBean.builder("UnlessBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withDeactivationAttribute("stringValue").build(),
+            "ConfigProperty", AnnotationFieldBean.builder("ConfigProperty").withPropertyNameAttribute("name").build(),
+            "ConditionalOnProperty", AnnotationFieldBean.builder("ConditionalOnProperty").withPropertyNameAttribute("value").withDefaultValue("true").withActivationAttribute("havingValue").build(),
+            "Value", AnnotationFieldBean.builder("Value").build());
+
+    /**
+     * Map of the configuration class name and its "type" attribute.
+     */
+    private static final Map<String, AnnotationClassBean> ANNOTATION_TYPE_MAP = Map.of(
+            "ConfigurationProperties", AnnotationClassBean.builder("ConfigurationProperties")
+                    .withPropertyNameAnnotation(AnnotationFieldBean.builder("Name").withPropertyNameAttribute("value").build())
+                    .withPrefixAttribute("prefix").build(),
+            "ConfigMapping", AnnotationClassBean.builder("ConfigMapping")
+                    .withPropertyNameAnnotation(AnnotationFieldBean.builder("WithName").build())
+                    .withParentNameAnnotation(AnnotationFieldBean.builder("WithParentName").build())
+                    .withDefaultValueAnnotation(AnnotationFieldBean.builder("WithDefault").build())
+                    .withPrefixAttribute("prefix").build());
+
+    static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
+    static final String KIE_PROPERTY_IMPORT = "org.kie." + KIE_PROPERTY_ANNOTATION;
 
     public static String getProperties(Path javaCode) {
         return getProperties(javaCode, TXT_PROPERTY_FORMAT);
@@ -111,34 +106,6 @@ public class ParserHelper {
      */
     public static String getPropertiesAsAdoc(Path javaCode) {
         return getProperties(javaCode, ADOC_PROPERTY_FORMAT);
-    }
-
-    public static void annotateProperties(Path javaCode) {
-        logger.debug("annotateProperties {}", javaCode);
-        CompilationUnit compilationUnit = getCompilationUnit(javaCode);
-        annotateProperties(compilationUnit);
-        try {
-            String prettyPrintedCode = compilationUnit.toString();
-            writeUpdatedCode(javaCode, prettyPrintedCode);
-        } catch (Exception e) {
-            logger.error("Error while writing file: {}", javaCode);
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    /*
-        Default access modifier for testing purpose
-    */
-    static CompilationUnit getCompilationUnit(Path javaCode) {
-        logger.debug("getCompilationUnit {}", javaCode);
-        try {
-            return StaticJavaParser.parse(javaCode);
-        } catch (Exception e) {
-            logger.error("Error while parsing file: {}", javaCode);
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
     }
 
     /*
@@ -210,44 +177,6 @@ public class ParserHelper {
     }
 
     /*
-      Default access modifier for testing purpose
-    */
-    static void annotateProperties(CompilationUnit compilationUnit) {
-        logger.debug("annotateProperties {}", compilationUnit);
-        List<ImportDeclaration> imports = compilationUnit.findAll(ImportDeclaration.class);
-        if (imports.stream().noneMatch(imprt -> imprt.getNameAsString().equals(KIE_PROPERTY_IMPORT))) {
-            addAnnotationImport(compilationUnit);
-        }
-        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
-                .forEach(ParserHelper::annotateProperties);
-    }
-
-    /*
-        Default access modifier for testing purpose
-    */
-    static void addAnnotationImport(CompilationUnit compilationUnit) {
-        logger.debug("addAnnotationImport {}", compilationUnit);
-        compilationUnit.getImports().add(new ImportDeclaration(KIE_PROPERTY_IMPORT, false, false));
-    }
-
-    /*
-        Default access modifier for testing purpose
-    */
-    static void annotateProperties(ClassOrInterfaceDeclaration node) {
-        logger.debug("annotateProperties {}", node);
-        getApplicationPropertyFields(node)
-                .forEach(ParserHelper::annotateProperties);
-    }
-
-    /*
-        Default access modifier for testing purpose
-    */
-    static void annotateProperties(FieldDeclaration field) {
-        logger.debug("annotateProperties {}", field);
-        field.addAnnotation(KIE_PROPERTY_ANNOTATION);
-    }
-
-    /*
         Default access modifier for testing purpose
     */
     static Optional<String> getAnnotatedValue(MethodDeclaration methodDeclaration, String annotationName, String annotationProperty) {
@@ -310,22 +239,9 @@ public class ParserHelper {
         return toReturn;
     }
 
-    private static void writeUpdatedCode(Path toOverWrite, String newContent) {
-        logger.debug("writeUpdatedCode {}", toOverWrite);
-        try (PrintWriter writer = new PrintWriter(toOverWrite.toFile())) {
-            writer.print("");
-            writer.print(newContent);
-            writer.flush();
-        } catch (Exception e) {
-            logger.error("Error while writing file: {}", toOverWrite);
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-    }
-
     private static String getProperties(Path javaCode, String propertyPattern) {
         logger.debug("getProperties {}", javaCode);
-        CompilationUnit compilationUnit = getCompilationUnit(javaCode);
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(javaCode);
         StringBuilder toPopulate = new StringBuilder();
         compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
                 .forEach(clsOrInt -> populateProperties(clsOrInt, toPopulate, propertyPattern));
@@ -391,13 +307,21 @@ public class ParserHelper {
     private static void populatePropertiesFromConfigurationClass(MethodDeclaration methodDeclaration, StringBuilder toPopulate, AnnotationClassBean annotationClassBean, String prefix,
             String propertyPattern) {
         logger.debug("populatePropertiesFromConfigurationClass {} {}", methodDeclaration, toPopulate);
-        Optional<String> annotatedName = getAnnotatedValue(methodDeclaration, annotationClassBean.getPropertyNameAnnotation(), annotationClassBean.getPropertyNameAttribute());
+        Optional<String> annotatedName = Optional.empty();
+        AnnotationFieldBean nameAnnotationFieldsBean = annotationClassBean.getPropertyNameAnnotation();
+        if (nameAnnotationFieldsBean != null) {
+            annotatedName = getAnnotatedValue(methodDeclaration, nameAnnotationFieldsBean.getAnnotationName(), nameAnnotationFieldsBean.getPropertyNameAttribute());
+        }
         var name = annotatedName.orElseGet(methodDeclaration::getNameAsString);
         var prefixedName = prefix != null ? prefix + "." + name : name;
         var type = "";
-        Optional<String> annotatedDefaultValue = getAnnotatedValue(methodDeclaration, annotationClassBean.getDefaultValueAnnotation(), annotationClassBean.getDefaultValueValue());
-        var defaultValue = annotatedDefaultValue.orElse("");
 
+        Optional<String> annotatedDefaultValue = Optional.empty();
+        AnnotationFieldBean defaultValueAnnotationFieldsBean = annotationClassBean.getDefaultValueAnnotation();
+        if (defaultValueAnnotationFieldsBean != null) {
+            annotatedDefaultValue = getAnnotatedValue(methodDeclaration, defaultValueAnnotationFieldsBean.getAnnotationName(), defaultValueAnnotationFieldsBean.getDefaultValueAttribute());
+        }
+        var defaultValue = annotatedDefaultValue.orElse("");
         // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
         var javadoc = methodDeclaration.getJavadocComment();
         var desc = javadoc.isPresent() ? javadoc.get().parse().getDescription().toText() : "";

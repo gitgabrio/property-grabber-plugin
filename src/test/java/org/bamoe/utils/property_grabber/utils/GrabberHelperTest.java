@@ -21,19 +21,14 @@ package org.bamoe.utils.property_grabber.utils;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -43,11 +38,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.bamoe.utils.property_grabber.utils.ParserHelper.ANNOTATION_NAME_MAP;
-import static org.bamoe.utils.property_grabber.utils.ParserHelper.KIE_PROPERTY_ANNOTATION;
-import static org.bamoe.utils.property_grabber.utils.ParserHelper.KIE_PROPERTY_IMPORT;
+import static org.bamoe.utils.property_grabber.utils.GrabberHelper.ANNOTATION_NAME_MAP;
+import static org.bamoe.utils.property_grabber.utils.GrabberHelper.KIE_PROPERTY_IMPORT;
 
-class ParserHelperTest {
+class GrabberHelperTest {
 
     private static final String TESTING_CLASS_NAME = "BasicJavaClassWithFields";
     private static final String TESTING_CLASS_FILE = TESTING_CLASS_NAME + ".java";
@@ -77,7 +71,7 @@ class ParserHelperTest {
                 "Config Name: kogito.jobs-service.port | Description: Property used to instantiate String (only active when \"true\") | Type:  | Default: true",
                 "Config Name: kogito.events.processinstances.enabled | Description: Property used to instantiate String | Type:  | Default: true");
 
-        var result = ParserHelper.getProperties(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
+        var result = GrabberHelper.getProperties(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
         for (String expectedValue : expected) {
             assertThat(result).contains(expectedValue);
         }
@@ -163,7 +157,7 @@ class ParserHelperTest {
                         "--\n" +
                         "| \n" +
                         "| true");
-        var result = ParserHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
+        var result = GrabberHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
         for (String expectedValue : expected) {
             assertThat(result).contains(expectedValue);
         }
@@ -175,7 +169,7 @@ class ParserHelperTest {
                 "Config Name: kie.flyway.isEnabled | Description:  | Type:  | Default:\s",
                 "Config Name: kie.flyway.modules | Description:  | Type:  | Default:\s");
 
-        var result = ParserHelper.getProperties(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
+        var result = GrabberHelper.getProperties(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
         for (String expectedValue : expected) {
             assertThat(result).contains(expectedValue);
         }
@@ -187,105 +181,86 @@ class ParserHelperTest {
                 "Config Name: kie.flyway.isEnabled | Description:  | Type:  | Default: false",
                 "Config Name: kie.flyway.modules | Description:  | Type:  | Default:\s");
 
-        var result = ParserHelper.getProperties(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
+        var result = GrabberHelper.getProperties(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
         for (String expectedValue : expected) {
             assertThat(result).contains(expectedValue);
         }
     }
 
     @Test
-    void annotateProperties() throws IOException {
-        Path javaCode = Path.of("src", "test", "resources", TESTING_CLASS_FILE);
-        Path backup = javaCode.resolveSibling(TESTING_CLASS_FILE + ".bak");
-        // Deleting backup file if already exists
-        Files.deleteIfExists(backup);
-        // Backing up original file content to restore it after test
-        Files.copy(javaCode, backup);
-        ParserHelper.annotateProperties(javaCode);
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(javaCode);
-        commonCheckImportDeclaration(compilationUnit);
-        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
-                .forEach(this::commonCheckAnnotatedClassDeclaration);
-        // Restore original file content
-        Files.copy(backup, javaCode, StandardCopyOption.REPLACE_EXISTING);
-        // Deleting backup file
-        Files.deleteIfExists(backup);
-    }
-
-    @Test
     void getApplicationPropertyFields() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
-        Collection<FieldDeclaration> retrieved = ParserHelper.getApplicationPropertyFields(classOrInterfaceDeclaration);
+        Collection<FieldDeclaration> retrieved = GrabberHelper.getApplicationPropertyFields(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull();
         retrieved.forEach(this::checkApplicationPropertyField);
     }
 
     @Test
     void getConfigClassAnnotation() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(SPRINGBOOT_CONFIG_CLASS))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(SPRINGBOOT_CONFIG_CLASS + " not found"));
-        Optional<AnnotationExpr> retrieved = ParserHelper.getConfigClassAnnotation(classOrInterfaceDeclaration);
+        Optional<AnnotationExpr> retrieved = GrabberHelper.getConfigClassAnnotation(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull().isPresent();
         assertThat(retrieved.get().getNameAsString()).isEqualTo("ConfigurationProperties");
         //--
-        compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
+        compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
         assertThat(compilationUnit).isNotNull();
         classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(QUARKUS_CONFIG_CLASS))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(QUARKUS_CONFIG_CLASS + " not found"));
-        retrieved = ParserHelper.getConfigClassAnnotation(classOrInterfaceDeclaration);
+        retrieved = GrabberHelper.getConfigClassAnnotation(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull().isPresent();
         assertThat(retrieved.get().getNameAsString()).isEqualTo("ConfigMapping");
     }
 
     @Test
     void getApplicationPropertiesFromConfigClass() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", SPRINGBOOT_CONFIG_FILE));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(SPRINGBOOT_CONFIG_CLASS))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(SPRINGBOOT_CONFIG_CLASS + " not found"));
-        List<MethodDeclaration> retrieved = ParserHelper.getApplicationPropertyFieldsFromConfigClass(classOrInterfaceDeclaration);
+        List<MethodDeclaration> retrieved = GrabberHelper.getApplicationPropertyFieldsFromConfigClass(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull();
         assertThat(retrieved).hasSize(2);
         //--
-        compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
+        compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", QUARKUS_CONFIG_FILE));
         assertThat(compilationUnit).isNotNull();
         classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(QUARKUS_CONFIG_CLASS))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(QUARKUS_CONFIG_CLASS + " not found"));
-        retrieved = ParserHelper.getApplicationPropertyFieldsFromConfigClass(classOrInterfaceDeclaration);
+        retrieved = GrabberHelper.getApplicationPropertyFieldsFromConfigClass(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull();
         assertThat(retrieved).hasSize(2);
     }
 
     @Test
     void getApplicationPropertyAnnotationsFromMethods() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
-        Map<AnnotationExpr, Node> retrieved = ParserHelper.getApplicationPropertyAnnotationsFromMethods(classOrInterfaceDeclaration);
+        Map<AnnotationExpr, Node> retrieved = GrabberHelper.getApplicationPropertyAnnotationsFromMethods(classOrInterfaceDeclaration);
         final int EXPECTED_DISCOVERED_METHODS = 6; // Magic number: it must reflect what is written inside BasicJavaClassWithFields.java
         assertThat(retrieved).isNotNull().hasSize(EXPECTED_DISCOVERED_METHODS);
         retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
@@ -299,63 +274,24 @@ class ParserHelperTest {
     }
 
     @Test
-    void annotatePropertiesOnCompilationUnit() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
-        assertThat(compilationUnit).isNotNull();
-        ParserHelper.annotateProperties(compilationUnit);
-        commonCheckImportDeclaration(compilationUnit);
-        compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
-                .forEach(this::commonCheckAnnotatedClassDeclaration);
-    }
-
-    @Test
-    void addAnnotationImport() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
-        ParserHelper.addAnnotationImport(compilationUnit);
-        commonCheckImportDeclaration(compilationUnit);
-    }
-
-    @Test
-    void annotatePropertiesOnClass() {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
-        assertThat(compilationUnit).isNotNull();
-        ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
-                .findAll(ClassOrInterfaceDeclaration.class)
-                .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
-        ParserHelper.annotateProperties(classOrInterfaceDeclaration);
-        commonCheckAnnotatedClassDeclaration(classOrInterfaceDeclaration);
-    }
-
-    @Test
-    void annotatePropertiesOnFieldDeclaration() {
-        FieldDeclaration fieldDeclaration = new FieldDeclaration();
-        fieldDeclaration.setModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL);
-        fieldDeclaration.setVariables(NodeList.nodeList(new VariableDeclarator(StaticJavaParser.parseClassOrInterfaceType("String"), "test")));
-        ParserHelper.annotateProperties(fieldDeclaration);
-        commonCheckAnnotatedFieldDeclaration(fieldDeclaration);
-    }
-
-    @Test
     void getAnnotatedValueFromMethodWithNormalAnnotation() {
         AnnotationExpr annotationExpr = StaticJavaParser.parseAnnotation("@KieProperty(name = \"test\")");
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setAnnotations(NodeList.nodeList(annotationExpr));
-        Optional<String> retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, "KieProperty", "name");
+        Optional<String> retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, "KieProperty", "name");
         assertThat(retrieved).isNotNull().isPresent();
         assertThat(retrieved.get()).isEqualTo("test");
-        assertThatThrownBy(() -> ParserHelper.getAnnotatedValue(methodDeclaration, "KieProperty",null))
+        assertThatThrownBy(() -> GrabberHelper.getAnnotatedValue(methodDeclaration, "KieProperty",null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("annotationProperty cannot be null");
         //--
-        retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, "NotAnnotation","name");
+        retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, "NotAnnotation","name");
         assertThat(retrieved).isNotNull().isNotPresent();
         //--
-        retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, null,"name");
+        retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, null,"name");
         assertThat(retrieved).isNotNull().isNotPresent();
         //--
-        assertThatThrownBy(() -> ParserHelper.getAnnotatedValue(methodDeclaration, "KieProperty","notexistingkey"))
+        assertThatThrownBy(() -> GrabberHelper.getAnnotatedValue(methodDeclaration, "KieProperty","notexistingkey"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No matching pair: @KieProperty(name = \"test\") for annotationProperty: notexistingkey");
     }
@@ -366,17 +302,17 @@ class ParserHelperTest {
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setAnnotations(NodeList.nodeList(annotationExpr));
         //--
-        Optional<String> retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, "KieProperty",null);
+        Optional<String> retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, "KieProperty",null);
         assertThat(retrieved).isNotNull().isPresent();
         assertThat(retrieved.get()).isEqualTo("test");
         //--
-        retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, "NotAnnotation","name");
+        retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, "NotAnnotation","name");
         assertThat(retrieved).isNotNull().isNotPresent();
         //--
-        retrieved = ParserHelper.getAnnotatedValue(methodDeclaration, null,"name");
+        retrieved = GrabberHelper.getAnnotatedValue(methodDeclaration, null,"name");
         assertThat(retrieved).isNotNull().isNotPresent();
         //--
-        assertThatThrownBy(() -> ParserHelper.getAnnotatedValue(methodDeclaration, "KieProperty","notexistingkey"))
+        assertThatThrownBy(() -> GrabberHelper.getAnnotatedValue(methodDeclaration, "KieProperty","notexistingkey"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("annotationProperty must be null");
 
@@ -385,25 +321,25 @@ class ParserHelperTest {
     @Test
     void getAnnotatedValueFromAnnotation() {
         AnnotationExpr annotationExpr = StaticJavaParser.parseAnnotation("@KieProperty(name = \"test\")");
-        String retrieved = ParserHelper.getAnnotatedValue(annotationExpr, "name");
+        String retrieved = GrabberHelper.getAnnotatedValue(annotationExpr, "name");
         assertThat(retrieved).isEqualTo("test");
-        assertThatThrownBy(() -> ParserHelper.getAnnotatedValue(annotationExpr, null))
+        assertThatThrownBy(() -> GrabberHelper.getAnnotatedValue(annotationExpr, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("annotationProperty cannot be null");
-        assertThatThrownBy(() -> ParserHelper.getAnnotatedValue(annotationExpr, "notexistingkey"))
+        assertThatThrownBy(() -> GrabberHelper.getAnnotatedValue(annotationExpr, "notexistingkey"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No matching pair: @KieProperty(name = \"test\") for annotationProperty: notexistingkey");
     }
 
     private void commonGetApplicationPropertyAnnotationsFromClass(String javaSource, String className) {
-        CompilationUnit compilationUnit = ParserHelper.getCompilationUnit(Path.of("src", "test", "resources", javaSource));
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", javaSource));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
                 .findAll(ClassOrInterfaceDeclaration.class)
                 .stream().filter(cls -> cls.getName().toString().equals(className))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(className + " not found"));
-        Map<AnnotationExpr, Node> retrieved = ParserHelper.getApplicationPropertyAnnotationsFromClass(classOrInterfaceDeclaration);
+        Map<AnnotationExpr, Node> retrieved = GrabberHelper.getApplicationPropertyAnnotationsFromClass(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull().hasSize(1);
         retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
     }
@@ -415,14 +351,6 @@ class ParserHelperTest {
                 .isTrue();
     }
 
-    private void commonCheckAnnotatedClassDeclaration(ClassOrInterfaceDeclaration toCheck) {
-        Collection<FieldDeclaration> fieldDeclarations = ParserHelper.getApplicationPropertyFields(toCheck);
-        fieldDeclarations.forEach(this::commonCheckAnnotatedFieldDeclaration);
-    }
-
-    private void commonCheckAnnotatedFieldDeclaration(FieldDeclaration toCheck) {
-        assertThat(toCheck.getAnnotations().stream().anyMatch(annotationExpr -> KIE_PROPERTY_ANNOTATION.equals(annotationExpr.getNameAsString()))).isTrue();
-    }
 
     private void checkApplicationPropertyField(FieldDeclaration toCheck) {
         assertThat(toCheck).isNotNull()

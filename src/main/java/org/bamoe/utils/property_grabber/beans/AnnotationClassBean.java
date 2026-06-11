@@ -22,22 +22,19 @@ public final class AnnotationClassBean {
     private final String annotationName;
 
     /**
-     * The name of the annotation used to define the property name
+     * The <code>AnnotationFieldBean</code> representation of the annotation used to define the property name
      */
-    private String propertyNameAnnotation;
+    private AnnotationFieldBean propertyNameAnnotation;
+
     /**
-     * The name of the attribute of the annotation used to define the property name
+     * The <code>AnnotationFieldBean</code> representation of the annotation used to define the parent name, if any (e.g. Quarkus)
      */
-    private String propertyNameAttribute;
-    private String parentNameAnnotation;
+    private AnnotationFieldBean parentNameAnnotation;
     /**
-     * The name of the annotation used to define the default value
+     * The <code>AnnotationFieldBean</code> representation of the annotation used to define the default value
      */
-    private String defaultValueAnnotation;
-    /**
-     * The name of the attribute of the annotation used to define the default value
-     */
-    private String defaultValueValue;
+    private AnnotationFieldBean defaultValueAnnotation;
+
     private String prefixAttribute;
 
     public static Constructor builder(String annotationName) {
@@ -52,24 +49,12 @@ public final class AnnotationClassBean {
         return annotationName;
     }
 
-    public String getPropertyNameAnnotation() {
+    public AnnotationFieldBean getPropertyNameAnnotation() {
         return propertyNameAnnotation;
     }
 
-    public String getPropertyNameAttribute() {
-        return propertyNameAttribute;
-    }
-
-    public String getParentNameAnnotation() {
-        return parentNameAnnotation;
-    }
-
-    public String getDefaultValueAnnotation() {
+    public AnnotationFieldBean getDefaultValueAnnotation() {
         return defaultValueAnnotation;
-    }
-
-    public String getDefaultValueValue() {
-        return defaultValueValue;
     }
 
     public String getPrefixAttribute() {
@@ -84,28 +69,18 @@ public final class AnnotationClassBean {
             toReturn = new AnnotationClassBean(annotationName);
         }
 
-        public AnnotationClassBean.Constructor withPropertyNameAnnotation(String propertyNameAnnotation) {
+        public AnnotationClassBean.Constructor withPropertyNameAnnotation(AnnotationFieldBean propertyNameAnnotation) {
             toReturn.propertyNameAnnotation = propertyNameAnnotation;
             return this;
         }
 
-        public AnnotationClassBean.Constructor withPropertyNameAttribute(String propertyNameAttribute) {
-            toReturn.propertyNameAttribute = propertyNameAttribute;
-            return this;
-        }
-
-        public AnnotationClassBean.Constructor withParentNameAnnotation(String parentNameAnnotation) {
+        public AnnotationClassBean.Constructor withParentNameAnnotation(AnnotationFieldBean parentNameAnnotation) {
             toReturn.parentNameAnnotation = parentNameAnnotation;
             return this;
         }
 
-        public AnnotationClassBean.Constructor withDefaultValueAnnotation(String defaultValueAnnotation) {
+        public AnnotationClassBean.Constructor withDefaultValueAnnotation(AnnotationFieldBean defaultValueAnnotation) {
             toReturn.defaultValueAnnotation = defaultValueAnnotation;
-            return this;
-        }
-
-        public AnnotationClassBean.Constructor withDefaultValueValue(String defaultValueValue) {
-            toReturn.defaultValueValue = defaultValueValue;
             return this;
         }
 

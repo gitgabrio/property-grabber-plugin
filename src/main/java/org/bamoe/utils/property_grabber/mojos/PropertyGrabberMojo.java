@@ -29,7 +29,7 @@ import org.apache.maven.plugins.annotations.InstantiationStrategy;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.bamoe.utils.property_grabber.utils.ParserHelper;
+import org.bamoe.utils.property_grabber.utils.GrabberHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,9 +85,9 @@ public class PropertyGrabberMojo extends AbstractPropertyMojo {
 
         // If we get anything besides "asciidoc" for the output type, use the text based output
         if (!"asciidoc".equals(outputType)) {
-            properties = ParserHelper.getProperties(entry);
+            properties = GrabberHelper.getProperties(entry);
         } else {
-            properties = ParserHelper.getPropertiesAsAdoc(entry);
+            properties = GrabberHelper.getPropertiesAsAdoc(entry);
         }
 
         logger.debug("properties {}", properties);
