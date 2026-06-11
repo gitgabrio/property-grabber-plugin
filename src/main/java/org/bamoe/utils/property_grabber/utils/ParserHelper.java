@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.bamoe.utils.property_grabber;
+package org.bamoe.utils.property_grabber.utils;
 
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
@@ -30,24 +30,21 @@ import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
+import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.javadoc.JavadocBlockTag;
-import com.github.javaparser.printer.DefaultPrettyPrinter;
-import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
-import java.io.BufferedInputStream;
-import java.io.BufferedWriter;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.StringReader;
-import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.bamoe.utils.property_grabber.beans.AnnotationClassBean;
+import org.bamoe.utils.property_grabber.beans.AnnotationFieldBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,16 +57,21 @@ public class ParserHelper {
     /**
      * Map of the annotation name and its "name" attribute.
      */
-    static final Map<String, String> ANNOTATION_NAME_MAP = Map.of("IfBuildProperty", "name",
-            "UnlessBuildProperty", "name",
-            "ConfigProperty", "name");
+    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_MAP = Map.of(
+            "IfBuildProperty", AnnotationFieldBean.builder("IfBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withActivationAttribute("stringValue").build(),
+            "UnlessBuildProperty", AnnotationFieldBean.builder("UnlessBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withDeactivationAttribute("stringValue").build(),
+            "ConfigProperty", AnnotationFieldBean.builder("ConfigProperty").withPropertyNameAttribute("name").build(),
+            "ConditionalOnProperty", AnnotationFieldBean.builder("ConditionalOnProperty").withPropertyNameAttribute("value").withDefaultValue("true").withActivationAttribute("havingValue").build(),
+            "Value", AnnotationFieldBean.builder("Value").build());
 
-    /*    */
     /**
-     * Map of the annotation name and its "type" attribute.
-     *//*
-    private static final Map<String, String> ANNOTATION_TYPE_MAP = Map.of("IfBuildProperty", "name",
-            "UnlessBuildProperty", "name");*/
+     * Map of the configuration class name and its "type" attribute.
+     */
+    private static final Map<String, AnnotationClassBean> ANNOTATION_TYPE_MAP = Map.of(
+            "ConfigurationProperties", AnnotationClassBean.builder("ConfigurationProperties")
+                    .withPropertyNameAnnotation("Name").withPropertyNameAttribute("value").withPrefixAttribute("prefix").build(),
+            "ConfigMapping", AnnotationClassBean.builder("ConfigMapping")
+                    .withPropertyNameAnnotation("WithName").withParentNameAnnotation("WithParentName").withDefaultValueAnnotation("WithDefault").withPrefixAttribute("prefix").build());
 
     static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
     static final String KIE_PROPERTY_IMPORT = "org.kie." + KIE_PROPERTY_ANNOTATION;
@@ -156,19 +158,28 @@ public class ParserHelper {
     }
 
     /*
-    Default access modifier for testing purpose
- */
-    static Map<AnnotationExpr, Node> getApplicationPropertyAnnotations(ClassOrInterfaceDeclaration node) {
-        logger.debug("getApplicationPropertyAnnotations {}", node);
-        Map<AnnotationExpr, Node> toReturn = new java.util.HashMap<>();
-        toReturn.putAll(getApplicationPropertyAnnotationsFromMethods(node));
-        toReturn.putAll(getApplicationPropertyAnnotationsFromClass(node));
-        return toReturn;
+        Default access modifier for testing purpose
+    */
+    static Optional<AnnotationExpr> getConfigClassAnnotation(ClassOrInterfaceDeclaration node) {
+        return node.getAnnotations()
+                .stream()
+                .filter(annotationExpr -> ANNOTATION_TYPE_MAP.containsKey(annotationExpr.getNameAsString()))
+                .findFirst();
     }
 
     /*
-  Default access modifier for testing purpose
-*/
+        Default access modifier for testing purpose
+    */
+    static List<MethodDeclaration> getApplicationPropertyFieldsFromConfigClass(ClassOrInterfaceDeclaration node) {
+        return node.getMethods()
+                .stream()
+                .filter(methodDeclaration -> !Objects.equals(methodDeclaration.getType(), new VoidType()) && (methodDeclaration.isPublic() || node.isInterface()))
+                .toList();
+    }
+
+    /*
+      Default access modifier for testing purpose
+    */
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromMethods(Node node) {
         return node.findAll(MethodDeclaration.class).stream()
                 .filter(methodDeclaration -> methodDeclaration.getAnnotations().stream()
@@ -183,8 +194,8 @@ public class ParserHelper {
     }
 
     /*
-  Default access modifier for testing purpose
-*/
+        Default access modifier for testing purpose
+    */
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromClass(Node node) {
         return node.findAll(ClassOrInterfaceDeclaration.class).stream()
                 .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getAnnotations().stream()
@@ -199,8 +210,8 @@ public class ParserHelper {
     }
 
     /*
-Default access modifier for testing purpose
-*/
+      Default access modifier for testing purpose
+    */
     static void annotateProperties(CompilationUnit compilationUnit) {
         logger.debug("annotateProperties {}", compilationUnit);
         List<ImportDeclaration> imports = compilationUnit.findAll(ImportDeclaration.class);
@@ -212,16 +223,16 @@ Default access modifier for testing purpose
     }
 
     /*
-Default access modifier for testing purpose
-*/
+        Default access modifier for testing purpose
+    */
     static void addAnnotationImport(CompilationUnit compilationUnit) {
         logger.debug("addAnnotationImport {}", compilationUnit);
         compilationUnit.getImports().add(new ImportDeclaration(KIE_PROPERTY_IMPORT, false, false));
     }
 
     /*
-  Default access modifier for testing purpose
-*/
+        Default access modifier for testing purpose
+    */
     static void annotateProperties(ClassOrInterfaceDeclaration node) {
         logger.debug("annotateProperties {}", node);
         getApplicationPropertyFields(node)
@@ -229,11 +240,74 @@ Default access modifier for testing purpose
     }
 
     /*
-  Default access modifier for testing purpose
-*/
+        Default access modifier for testing purpose
+    */
     static void annotateProperties(FieldDeclaration field) {
         logger.debug("annotateProperties {}", field);
         field.addAnnotation(KIE_PROPERTY_ANNOTATION);
+    }
+
+    /*
+        Default access modifier for testing purpose
+    */
+    static Optional<String> getAnnotatedValue(MethodDeclaration methodDeclaration, String annotationName, String annotationProperty) {
+        if (annotationName == null) {
+            return Optional.empty();
+        }
+        Optional<AnnotationExpr> annotation = methodDeclaration.getAnnotations().stream()
+                .filter(annotationExpr -> annotationExpr.getNameAsString().equals(annotationName))
+                .findFirst();
+        return annotation.map(annt -> getAnnotatedValue(annt, annotationProperty));
+    }
+
+    /*
+        Default access modifier for testing purpose
+    */
+    static String getAnnotatedValue(AnnotationExpr annotationExpr, String annotationProperty) {
+        if (annotationExpr.isNormalAnnotationExpr()) {
+            return getAnnotatedValue(annotationExpr.asNormalAnnotationExpr(), annotationProperty);
+        } else if (annotationExpr.isSingleMemberAnnotationExpr()) {
+            return getAnnotatedValue(annotationExpr.asSingleMemberAnnotationExpr(), annotationProperty);
+        } else {
+            throw new IllegalArgumentException("Unsupported annotation type: " + annotationExpr);
+        }
+    }
+
+    private static String getAnnotatedValue(NormalAnnotationExpr annotationExpr, String annotationProperty) {
+        if (annotationProperty == null) {
+            throw new IllegalArgumentException("annotationProperty cannot be null");
+        }
+        if (annotationProperty.isBlank()) {
+            return null;
+        }
+        MemberValuePair memberValuePair = annotationExpr.getPairs().stream()
+                .filter(pair -> pair.getNameAsString().equals(annotationProperty))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No matching pair: " + annotationExpr + " for annotationProperty: " + annotationProperty));
+
+        var value = memberValuePair.getValue();
+        var toReturn = "";
+        if (value instanceof StringLiteralExpr) {
+            toReturn = value.asStringLiteralExpr().asString();
+        } else if (value instanceof FieldAccessExpr) {
+            toReturn = String.format("(%s)", ((FieldAccessExpr) value).toString());
+        }
+        return toReturn;
+    }
+
+    private static String getAnnotatedValue(SingleMemberAnnotationExpr annotationExpr, String annotationProperty) {
+        if (annotationProperty != null && !annotationProperty.isBlank()) {
+            throw new IllegalArgumentException("annotationProperty must be null");
+        }
+        return annotationExpr.getMemberValue().asStringLiteralExpr().asString();
+    }
+
+    private static Map<AnnotationExpr, Node> getApplicationPropertyAnnotations(ClassOrInterfaceDeclaration node) {
+        logger.debug("getApplicationPropertyAnnotations {}", node);
+        Map<AnnotationExpr, Node> toReturn = new java.util.HashMap<>();
+        toReturn.putAll(getApplicationPropertyAnnotationsFromMethods(node));
+        toReturn.putAll(getApplicationPropertyAnnotationsFromClass(node));
+        return toReturn;
     }
 
     private static void writeUpdatedCode(Path toOverWrite, String newContent) {
@@ -261,13 +335,22 @@ Default access modifier for testing purpose
     private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
         logger.debug("populateProperties {} {}", node, toPopulate);
         getApplicationPropertyFields(node)
-                .forEach(fldDclr -> populateProperties(fldDclr, toPopulate, propertyPattern));
+                .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
+        Optional<AnnotationExpr> configClassAnnotation = getConfigClassAnnotation(node);
+        if (configClassAnnotation.isPresent()) {
+            AnnotationExpr annotationExpr = configClassAnnotation.get();
+            AnnotationClassBean annotationClassBean = ANNOTATION_TYPE_MAP.get(annotationExpr.getNameAsString());
+            String prefix = getAnnotatedValue(configClassAnnotation.get(), annotationClassBean.getPrefixAttribute());
+            List<MethodDeclaration> configClassMethods = getApplicationPropertyFieldsFromConfigClass(node);
+            configClassMethods.forEach(methodDeclaration ->
+                    populatePropertiesFromConfigurationClass(methodDeclaration, toPopulate, annotationClassBean, prefix, propertyPattern));
+        }
         getApplicationPropertyAnnotations(node)
                 .forEach((annotation, mappedNode) -> populateProperties(annotation, mappedNode, toPopulate, propertyPattern));
     }
 
-    private static void populateProperties(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
-        logger.debug("populateProperties {} {}", field, toPopulate);
+    private static void populatePropertiesFromRawClass(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
+        logger.debug("populatePropertiesFromRawClass {} {}", field, toPopulate);
 
         var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + field)).asStringLiteralExpr();
         var type = "";
@@ -305,73 +388,73 @@ Default access modifier for testing purpose
         toPopulate.append(String.format(propertyPattern, name.asString(), desc, type, defaultValue)).append(System.lineSeparator());
     }
 
+    private static void populatePropertiesFromConfigurationClass(MethodDeclaration methodDeclaration, StringBuilder toPopulate, AnnotationClassBean annotationClassBean, String prefix,
+            String propertyPattern) {
+        logger.debug("populatePropertiesFromConfigurationClass {} {}", methodDeclaration, toPopulate);
+        Optional<String> annotatedName = getAnnotatedValue(methodDeclaration, annotationClassBean.getPropertyNameAnnotation(), annotationClassBean.getPropertyNameAttribute());
+        var name = annotatedName.orElseGet(methodDeclaration::getNameAsString);
+        var prefixedName = prefix != null ? prefix + "." + name : name;
+        var type = "";
+        Optional<String> annotatedDefaultValue = getAnnotatedValue(methodDeclaration, annotationClassBean.getDefaultValueAnnotation(), annotationClassBean.getDefaultValueValue());
+        var defaultValue = annotatedDefaultValue.orElse("");
+
+        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
+        var javadoc = methodDeclaration.getJavadocComment();
+        var desc = javadoc.isPresent() ? javadoc.get().parse().getDescription().toText() : "";
+        toPopulate.append(String.format(propertyPattern, prefixedName, desc, type, defaultValue)).append(System.lineSeparator());
+    }
+
     private static void populateProperties(AnnotationExpr annotation, Node node, StringBuilder toPopulate, String propertyPattern) {
         logger.debug("populateProperties {} {}", annotation, toPopulate);
-
-        MemberValuePair memberValuePair = ((NormalAnnotationExpr) annotation)
-                .getPairs().stream().filter(Objects::nonNull)
-                .filter(pair -> ANNOTATION_NAME_MAP.get(annotation.getNameAsString()).equals(pair.getNameAsString()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No matching pair: " + annotation));
-
-        var value = memberValuePair.getValue();
-        var name = "";
-        if (value instanceof StringLiteralExpr) {
-            name = value.asStringLiteralExpr().asString();
-        } else if (value instanceof FieldAccessExpr) {
-            name = String.format("(%s)", ((FieldAccessExpr) value).toString());
+        if (!ANNOTATION_NAME_MAP.containsKey(annotation.getNameAsString())) {
+            logger.debug("Ignored annotation: {}", annotation);
+            return;
+        }
+        AnnotationFieldBean annotationFieldsBean = ANNOTATION_NAME_MAP.get(annotation.getNameAsString());
+        var name = getAnnotatedValue(annotation, annotationFieldsBean.getPropertyNameAttribute());
+        String defaultValue = null;
+        if (name.contains("{") && name.contains("}")) {
+            name = name.substring(name.indexOf("{") + 1, name.indexOf("}"));
+            if (name.contains(":")) {
+                defaultValue = name.substring(name.indexOf(":") + 1);
+                name = name.substring(0, name.indexOf(":"));
+            }
         }
         var type = "";
-        var defaultValue = "";
-        var desc = getDescription(node);
+        if ((defaultValue == null || defaultValue.isBlank()) && annotationFieldsBean.getDefaultValueAttribute() != null) {
+            defaultValue = getAnnotatedValue(annotation, annotationFieldsBean.getDefaultValueAttribute());
+        }
+        if (defaultValue == null || defaultValue.isBlank()) {
+            defaultValue = annotationFieldsBean.getDefaultValue() != null ? annotationFieldsBean.getDefaultValue() : "";
+        }
+        var desc = getDescription(annotationFieldsBean, node);
 
-        //        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
-        //        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
-        //        var desc = javadoc.getDescription().toText();
-
-        //        var name = annotation.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + annotation)).asStringLiteralExpr();
-        //        var type = "";
-        //        var defaultValue = "";
-        //
-        //        // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
-        //        var javadoc = annotation.getJavadocComment().orElseThrow(() -> new IllegalArgumentException("No JavadocComment: " + annotation)).parse();
-        //        var desc = javadoc.getDescription().toText();
-        //
-        //        // Start the really brittle parsing of a JavaDoc comment like:
-        //        // (integer) number of decision topic partitions; default to 1
-        //        var pattern = Pattern.compile("^\\((?<type>\\w+)\\)\\s+(?<desc>[\\w\\s/]+)(?<defaultValue>.*)?$");
-        //        var matcher = pattern.matcher(desc);
-        //
-        //        if (matcher.matches()) {
-        //            type = matcher.group("type");
-        //            desc = matcher.group("desc");
-        //
-        //            // Take the default value, and strip out the first part we don't need
-        //            defaultValue = matcher.group("defaultValue").replace("; default to ", "");
-        //        }
-        //
-        //        // If there are JavaDoc tags, use them instead of the regex
-        //        if (!javadoc.getBlockTags().isEmpty()) {
-        //            for (JavadocBlockTag tag : javadoc.getBlockTags()) {
-        //                if (tag.getTagName().equals("type")) {
-        //                    type = tag.getContent().getElements().get(0).toText(); // Should only be one element
-        //                }
-        //                if (tag.getTagName().equals("default")) {
-        //                    defaultValue = tag.getContent().getElements().get(0).toText(); // Should only be one element
-        //                }
-        //            }
-        //        }
-        //
         toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue)).append(System.lineSeparator());
     }
 
-    private static String getDescription(Node node) {
+    private static String getDescription(AnnotationFieldBean annotationFieldsBean, Node node) {
         String toReturn = "";
+        Optional<String> propertyActivationValue = Optional.empty();
+        Optional<String> propertyDeactivationValue = Optional.empty();
         if (node instanceof MethodDeclaration methodDeclaration) {
             toReturn = "Property used to instantiate " + methodDeclaration.getType();
+            if (annotationFieldsBean.getActivationAttribute() != null) {
+                propertyActivationValue = getAnnotatedValue(methodDeclaration, annotationFieldsBean.getAnnotationName(), annotationFieldsBean.getActivationAttribute());
+            }
+            if (annotationFieldsBean.getDeactivationAttribute() != null) {
+                propertyDeactivationValue = getAnnotatedValue(methodDeclaration, annotationFieldsBean.getAnnotationName(), annotationFieldsBean.getDeactivationAttribute());
+            }
         } else if (node instanceof ClassOrInterfaceDeclaration classOrInterfaceDeclaration) {
             toReturn = "Property used to instantiate " + classOrInterfaceDeclaration.getName();
         }
+
+        if (propertyActivationValue.isPresent() && !propertyActivationValue.get().isBlank()) {
+            toReturn += " (only active when \"" + propertyActivationValue.get() + "\")";
+        }
+        if (propertyDeactivationValue.isPresent() && !propertyDeactivationValue.get().isBlank()) {
+            toReturn += " (only active when not \"" + propertyDeactivationValue.get() + "\")";
+        }
         return toReturn;
     }
-}   
+
+}

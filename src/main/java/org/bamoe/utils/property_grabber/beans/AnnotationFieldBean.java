@@ -1,0 +1,128 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.bamoe.utils.property_grabber.beans;
+
+public final class AnnotationFieldBean {
+    private final String annotationName;
+    private String propertyNameAttribute;
+    private String propertyType;
+    private String defaultValue;
+    private String defaultValueAttribute;
+    private String activationAttribute;
+    private String deactivationAttribute;
+    private String prefixAttribute;
+
+    public static Constructor builder(String annotationName) {
+        return new Constructor(annotationName);
+    }
+
+    private AnnotationFieldBean(String annotationName) {
+        this.annotationName = annotationName;
+    }
+
+    public String getAnnotationName() {
+        return annotationName;
+    }
+
+    public String getPropertyNameAttribute() {
+        return propertyNameAttribute;
+    }
+
+    public String getPropertyType() {
+        return propertyType;
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public String getDefaultValueAttribute() {
+        return defaultValueAttribute;
+    }
+
+    public String getActivationAttribute() {
+        return activationAttribute;
+    }
+
+    public String getDeactivationAttribute() {
+        return deactivationAttribute;
+    }
+
+    public String getPrefixAttribute() {
+        return prefixAttribute;
+    }
+
+    public static class Constructor {
+
+        private final AnnotationFieldBean toReturn;
+
+        private Constructor(String annotationName) {
+            toReturn = new AnnotationFieldBean(annotationName);
+        }
+
+        public Constructor withPropertyNameAttribute(String propertyNameAttribute) {
+            toReturn.propertyNameAttribute = propertyNameAttribute;
+            return this;
+        }
+
+        public Constructor withPropertyType(String propertyType) {
+            toReturn.propertyType = propertyType;
+            return this;
+        }
+
+        /**
+         * The "hardcoded" default value, depending on tha annotation itself (e.g. for IfBuildProperty, UnlessBuildProperty)
+         * @param defaultValue
+         * @return
+         */
+        public Constructor withDefaultValue(String defaultValue) {
+            toReturn.defaultValue = defaultValue;
+            return this;
+        }
+
+        /**
+         * The "attribute pointing to the default value
+         * @param defaultValueAttribute
+         * @return
+         */
+        public Constructor withDefaultValueAttribute(String defaultValueAttribute) {
+            toReturn.defaultValueAttribute = defaultValueAttribute;
+            return this;
+        }
+
+        public Constructor withActivationAttribute(String activationAttribute) {
+            toReturn.activationAttribute = activationAttribute;
+            return this;
+        }
+
+        public Constructor withDeactivationAttribute(String deactivationAttribute) {
+            toReturn.deactivationAttribute = deactivationAttribute;
+            return this;
+        }
+
+        public Constructor withPrefixAttribute(String prefixAttribute) {
+            toReturn.prefixAttribute = prefixAttribute;
+            return this;
+        }
+
+        public AnnotationFieldBean build() {
+            return toReturn;
+        }
+    }
+}   

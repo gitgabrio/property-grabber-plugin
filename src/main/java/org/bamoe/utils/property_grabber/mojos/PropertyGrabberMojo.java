@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.bamoe.utils.property_grabber;
+package org.bamoe.utils.property_grabber.mojos;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -29,6 +29,7 @@ import org.apache.maven.plugins.annotations.InstantiationStrategy;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.bamoe.utils.property_grabber.utils.ParserHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

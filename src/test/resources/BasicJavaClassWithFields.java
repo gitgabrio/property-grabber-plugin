@@ -88,4 +88,14 @@ public class BasicJavaClassWithFields {
     public String configProperty() {
         return "anything";
     }
+
+    @ConditionalOnProperty(value = "kogito.jobs-service.port", havingValue = "true", matchIfMissing = true)
+    public String conditionalOnProperty() {
+        return "anything";
+    }
+
+    @Value("${kogito.events.processinstances.enabled:true}")
+    public String valueProperty() {
+        return "anything";
+    }
 }
