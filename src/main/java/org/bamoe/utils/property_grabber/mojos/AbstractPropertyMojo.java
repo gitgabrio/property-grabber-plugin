@@ -36,7 +36,7 @@ public abstract class AbstractPropertyMojo extends AbstractMojo {
     private static final Logger logger = LoggerFactory.getLogger(AbstractPropertyMojo.class);
 
     @Parameter(readonly = true, defaultValue = "${project}")
-    private MavenProject mavenProject;
+    protected MavenProject mavenProject;
 
     void parentExecute(String mojoName) throws MojoExecutionException, MojoFailureException {
         logger.info("{} {} {}", mojoName, mavenProject.getGroupId(), mavenProject.getArtifactId());

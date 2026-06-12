@@ -14,6 +14,18 @@ The "grab" goal detects:
 
 The "annotate" goal will annotate all the no-CDI-annotated properties (at above point 3.) with `@KieProperty`.
 
+To execute it without adding in the pom, issue the following command:
+
+```bash
+mvn org.bamoe.utils:properties-grabber-plugin:2.0:grab -DoutputType=properties
+```
+
+or
+
+```bash
+mvn org.bamoe.utils:properties-grabber-plugin:2.0:annotate
+```
+
 
 
 

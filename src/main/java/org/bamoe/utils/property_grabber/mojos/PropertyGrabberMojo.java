@@ -38,46 +38,13 @@ public class PropertyGrabberMojo extends AbstractPropertyMojo {
 
     private static final Logger logger = LoggerFactory.getLogger(PropertyGrabberMojo.class);
 
-    //    @Parameter(readonly = true, defaultValue = "${project}")
-    //    private MavenProject mavenProject;
-
     @Parameter(defaultValue = "asciidoc")
     private String outputType;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         parentExecute("PropertyGrabber");
-        //        logger.info("PropertyGrabber {} {}", mavenProject.getGroupId(), mavenProject.getArtifactId());
-        //        logger.debug("Sources {}", mavenProject.getCompileSourceRoots());
-        //        try {
-        //            mavenProject.getCompileSourceRoots().forEach(this::iterateSourceDirectory);
-        //        } catch (Exception e) {
-        //            throw new MojoFailureException("Failed to iterate source directory", e);
-        //        }
     }
-
-    //    private void iterateSourceDirectory(String sourceDirectory) {
-    //        logger.debug("iterateSourceDirectory {}", sourceDirectory);
-    //        Path path = Path.of(sourceDirectory);
-    //        if (path.toFile().exists()) {
-    //            iterateSourceDirectory(path);
-    //        }
-    //    }
-
-    //    private void iterateSourceDirectory(Path sourceDirectory) {
-    //        logger.debug("iterateSourceDirectory {}", sourceDirectory);
-    //        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sourceDirectory)) {
-    //            for (Path entry : stream) {
-    //                if (Files.isDirectory(entry)) {
-    //                    iterateSourceDirectory(entry);
-    //                } else if (Files.isRegularFile(entry) && entry.getFileName().toString().endsWith(".java")) {
-    //                    readJavaClass(entry);
-    //                }
-    //            }
-    //        } catch (IOException e) {
-    //            throw new RuntimeException(e);
-    //        }
-    //    }
 
     void readJavaClass(Path entry) throws IOException {
         logger.debug("readJavaClass {}", entry);
@@ -90,7 +57,7 @@ public class PropertyGrabberMojo extends AbstractPropertyMojo {
             properties = GrabberHelper.getPropertiesAsAdoc(entry);
         }
 
-        logger.debug("properties {}", properties);
+        logger.trace("properties {}", properties);
         if (!properties.isEmpty()) {
             printProperties(properties);
         }

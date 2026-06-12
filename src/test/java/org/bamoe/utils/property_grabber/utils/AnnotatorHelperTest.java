@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,9 +43,11 @@ class AnnotatorHelperTest {
 
     private static final String TESTING_CLASS_NAME = "BasicJavaClassWithFields";
     private static final String TESTING_CLASS_FILE = TESTING_CLASS_NAME + ".java";
+    private static final String ALREADY_ANNOTATED_CLASS_NAME = "AlreadyAnnotatedJavaClass";
+    private static final String ALREADY_ANNOTATED_CLASS_FILE = ALREADY_ANNOTATED_CLASS_NAME + ".java";
 
     @Test
-    void annotateProperties() throws IOException {
+    void annotatePropertiesOnPath() throws IOException {
         Path javaCode = Path.of("src", "test", "resources", TESTING_CLASS_FILE);
         Path backup = javaCode.resolveSibling(TESTING_CLASS_FILE + ".bak");
         // Deleting backup file if already exists
@@ -60,6 +63,16 @@ class AnnotatorHelperTest {
         Files.copy(backup, javaCode, StandardCopyOption.REPLACE_EXISTING);
         // Deleting backup file
         Files.deleteIfExists(backup);
+    }
+
+    @Test
+    void conditionallyAddImport() {
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
+        AnnotatorHelper.conditionallyAddImport(compilationUnit);
+        commonCheckImportDeclaration(compilationUnit);
+        compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", ALREADY_ANNOTATED_CLASS_FILE));
+        AnnotatorHelper.conditionallyAddImport(compilationUnit);
+        commonCheckImportDeclaration(compilationUnit);
     }
 
     @Test
@@ -82,6 +95,7 @@ class AnnotatorHelperTest {
         commonCheckAnnotatedClassDeclaration(classOrInterfaceDeclaration);
     }
 
+
     @Test
     void annotatePropertiesOnFieldDeclaration() {
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
@@ -99,8 +113,9 @@ class AnnotatorHelperTest {
     private void commonCheckImportDeclaration(CompilationUnit toCheck) {
         assertThat(toCheck.findAll(ImportDeclaration.class)
                 .stream()
-                .anyMatch(importDeclaration -> KIE_PROPERTY_IMPORT.equals(importDeclaration.getNameAsString())))
-                .isTrue();
+                .filter(importDeclaration -> KIE_PROPERTY_IMPORT.equals(importDeclaration.getNameAsString()))
+                .toList())
+                .hasSize(1);
     }
 
 

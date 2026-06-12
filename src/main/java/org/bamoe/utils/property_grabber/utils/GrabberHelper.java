@@ -112,7 +112,7 @@ public class GrabberHelper {
         Default access modifier for testing purpose
      */
     static Collection<FieldDeclaration> getApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
-        logger.debug("getApplicationPropertyFields {}", node);
+        logger.debug("getApplicationPropertyFields {}", node.getName());
         return node.findAll(FieldDeclaration.class).stream()
                 .filter(FieldDeclaration::isStatic)
                 .filter(FieldDeclaration::isPublic)
@@ -232,7 +232,7 @@ public class GrabberHelper {
     }
 
     private static Map<AnnotationExpr, Node> getApplicationPropertyAnnotations(ClassOrInterfaceDeclaration node) {
-        logger.debug("getApplicationPropertyAnnotations {}", node);
+        logger.debug("getApplicationPropertyAnnotations {}", node.getName());
         Map<AnnotationExpr, Node> toReturn = new java.util.HashMap<>();
         toReturn.putAll(getApplicationPropertyAnnotationsFromMethods(node));
         toReturn.putAll(getApplicationPropertyAnnotationsFromClass(node));
@@ -249,7 +249,7 @@ public class GrabberHelper {
     }
 
     private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
-        logger.debug("populateProperties {} {}", node, toPopulate);
+        logger.debug("populateProperties {} {}", node.getName(), toPopulate);
         getApplicationPropertyFields(node)
                 .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
         Optional<AnnotationExpr> configClassAnnotation = getConfigClassAnnotation(node);
@@ -266,7 +266,7 @@ public class GrabberHelper {
     }
 
     private static void populatePropertiesFromRawClass(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
-        logger.debug("populatePropertiesFromRawClass {} {}", field, toPopulate);
+        logger.trace("populatePropertiesFromRawClass {} {}", field, toPopulate);
 
         var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + field)).asStringLiteralExpr();
         var type = "";
@@ -306,7 +306,7 @@ public class GrabberHelper {
 
     private static void populatePropertiesFromConfigurationClass(MethodDeclaration methodDeclaration, StringBuilder toPopulate, AnnotationClassBean annotationClassBean, String prefix,
             String propertyPattern) {
-        logger.debug("populatePropertiesFromConfigurationClass {} {}", methodDeclaration, toPopulate);
+        logger.trace("populatePropertiesFromConfigurationClass {} {}", methodDeclaration, toPopulate);
         Optional<String> annotatedName = Optional.empty();
         AnnotationFieldBean nameAnnotationFieldsBean = annotationClassBean.getPropertyNameAnnotation();
         if (nameAnnotationFieldsBean != null) {
@@ -329,9 +329,9 @@ public class GrabberHelper {
     }
 
     private static void populateProperties(AnnotationExpr annotation, Node node, StringBuilder toPopulate, String propertyPattern) {
-        logger.debug("populateProperties {} {}", annotation, toPopulate);
+        logger.trace("populateProperties {} {}", annotation, toPopulate);
         if (!ANNOTATION_NAME_MAP.containsKey(annotation.getNameAsString())) {
-            logger.debug("Ignored annotation: {}", annotation);
+            logger.trace("Ignored annotation: {}", annotation);
             return;
         }
         AnnotationFieldBean annotationFieldsBean = ANNOTATION_NAME_MAP.get(annotation.getNameAsString());
