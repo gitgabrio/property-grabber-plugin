@@ -20,7 +20,6 @@ package org.bamoe.utils.property_grabber.utils;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -38,13 +37,15 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_ANNOTATION;
 import static org.bamoe.utils.property_grabber.utils.GrabberHelper.ANNOTATION_NAME_MAP;
-import static org.bamoe.utils.property_grabber.utils.GrabberHelper.KIE_PROPERTY_IMPORT;
 
 class GrabberHelperTest {
 
     private static final String TESTING_CLASS_NAME = "BasicJavaClassWithFields";
     private static final String TESTING_CLASS_FILE = TESTING_CLASS_NAME + ".java";
+    private static final String ALREADY_ANNOTATED_CLASS_NAME = "AlreadyAnnotatedJavaClass";
+    private static final String ALREADY_ANNOTATED_CLASS_FILE = ALREADY_ANNOTATED_CLASS_NAME + ".java";
     private static final String IF_BUILD_CLASS_NAME = "IfBuildPropertyJavaClass";
     private static final String IF_BUILD_CLASS_FILE = IF_BUILD_CLASS_NAME + ".java";
     private static final String UNLESS_BUILD_CLASS_NAME = "UnlessBuildPropertyJavaClass";
@@ -70,11 +71,12 @@ class GrabberHelperTest {
                 "Config Name: kogito.jobs-service.url | Description: Property used to instantiate String | Type:  | Default:\s",
                 "Config Name: kogito.jobs-service.port | Description: Property used to instantiate String (only active when \"true\") | Type:  | Default: true",
                 "Config Name: kogito.events.processinstances.enabled | Description: Property used to instantiate String | Type:  | Default: true");
-
-        var result = GrabberHelper.getProperties(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
-        for (String expectedValue : expected) {
-            assertThat(result).contains(expectedValue);
-        }
+        commonCheckProperties(expected, TESTING_CLASS_FILE);
+        //--
+        expected = Arrays.asList(
+                "Config Name: kogito.decisions.stronglytyped | Description: Some javadoc | Type:  | Default:",
+                "Config Name: kogito.addon.tracing.decision.asyncEnabled | Description: enable/disable asynchronous collection of decision events | Type: boolean | Default: true");
+        commonCheckProperties(expected, ALREADY_ANNOTATED_CLASS_FILE);
     }
 
     @Test
@@ -157,10 +159,24 @@ class GrabberHelperTest {
                         "--\n" +
                         "| \n" +
                         "| true");
-        var result = GrabberHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
-        for (String expectedValue : expected) {
-            assertThat(result).contains(expectedValue);
-        }
+        commonCheckPropertiesAsADoc(expected, TESTING_CLASS_FILE);
+        //--
+        expected = Arrays.asList(
+                "a| `kogito.addon.tracing.decision.asyncEnabled`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "enable/disable asynchronous collection of decision events\n" +
+                        "--\n" +
+                        "| boolean\n" +
+                        "| true",
+                "a| `kogito.decisions.stronglytyped`\n" +
+                        "[.description]\n" +
+                        "--\n" +
+                        "Some javadoc\n" +
+                        "--\n" +
+                        "| \n" +
+                        "|");
+        commonCheckPropertiesAsADoc(expected, ALREADY_ANNOTATED_CLASS_FILE);
     }
 
     @Test
@@ -188,7 +204,7 @@ class GrabberHelperTest {
     }
 
     @Test
-    void getApplicationPropertyFields() {
+    void getNotKieAnnotatedApplicationPropertyFields() {
         CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", TESTING_CLASS_FILE));
         assertThat(compilationUnit).isNotNull();
         ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
@@ -196,9 +212,23 @@ class GrabberHelperTest {
                 .stream().filter(cls -> cls.getName().toString().equals(TESTING_CLASS_NAME))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(TESTING_CLASS_NAME + " not found"));
-        Collection<FieldDeclaration> retrieved = GrabberHelper.getApplicationPropertyFields(classOrInterfaceDeclaration);
+        Collection<FieldDeclaration> retrieved = GrabberHelper.getNotKieAnnotatedApplicationPropertyFields(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull();
         retrieved.forEach(this::checkApplicationPropertyField);
+    }
+
+    @Test
+    void getKieAnnotatedApplicationPropertyFields() {
+        CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", ALREADY_ANNOTATED_CLASS_FILE));
+        assertThat(compilationUnit).isNotNull();
+        ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit
+                .findAll(ClassOrInterfaceDeclaration.class)
+                .stream().filter(cls -> cls.getName().toString().equals(ALREADY_ANNOTATED_CLASS_NAME))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(ALREADY_ANNOTATED_CLASS_NAME + " not found"));
+        Collection<FieldDeclaration> retrieved = GrabberHelper.getKieAnnotatedApplicationPropertyFields(classOrInterfaceDeclaration);
+        assertThat(retrieved).isNotNull().hasSize(1); // Magic number: it must reflect what is written inside AlreadyAnnotatedJavaClass.java
+        retrieved.forEach(this::checkKieAnnotatedApplicationPropertyFields);
     }
 
     @Test
@@ -331,6 +361,22 @@ class GrabberHelperTest {
                 .hasMessageContaining("No matching pair: @KieProperty(name = \"test\") for annotationProperty: notexistingkey");
     }
 
+    private void commonCheckProperties(List<String> expected,  String classToTest) {
+        var result = GrabberHelper.getProperties(Path.of("src", "test", "resources", classToTest));
+        commonCheckPropertiesContent(expected, result);
+    }
+
+    private void commonCheckPropertiesAsADoc(List<String> expected,  String classToTest) {
+        var result = GrabberHelper.getPropertiesAsAdoc(Path.of("src", "test", "resources", classToTest));
+        commonCheckPropertiesContent(expected, result);
+    }
+
+    private void commonCheckPropertiesContent(List<String> expected,  String toCheck) {
+        for (String expectedValue : expected) {
+            assertThat(toCheck).contains(expectedValue);
+        }
+    }
+
     private void commonGetApplicationPropertyAnnotationsFromClass(String javaSource, String className) {
         CompilationUnit compilationUnit = CommonHelper.getCompilationUnit(Path.of("src", "test", "resources", javaSource));
         assertThat(compilationUnit).isNotNull();
@@ -344,13 +390,13 @@ class GrabberHelperTest {
         retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
     }
 
-    private void commonCheckImportDeclaration(CompilationUnit toCheck) {
-        assertThat(toCheck.findAll(ImportDeclaration.class)
+    private void checkKieAnnotatedApplicationPropertyFields(FieldDeclaration toCheck) {
+        assertThat(toCheck).isNotNull();
+        assertThat(toCheck.getAnnotations()
                 .stream()
-                .anyMatch(importDeclaration -> KIE_PROPERTY_IMPORT.equals(importDeclaration.getNameAsString())))
-                .isTrue();
+                .anyMatch(annotationExpr -> annotationExpr.getNameAsString().equals(KIE_PROPERTY_ANNOTATION))).isTrue();
+        checkApplicationPropertyField(toCheck);
     }
-
 
     private void checkApplicationPropertyField(FieldDeclaration toCheck) {
         assertThat(toCheck).isNotNull()

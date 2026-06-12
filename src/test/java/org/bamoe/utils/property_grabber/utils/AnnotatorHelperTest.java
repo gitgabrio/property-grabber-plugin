@@ -31,13 +31,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.bamoe.utils.property_grabber.utils.AnnotatorHelper.KIE_PROPERTY_ANNOTATION;
-import static org.bamoe.utils.property_grabber.utils.AnnotatorHelper.KIE_PROPERTY_IMPORT;
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_ANNOTATION;
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_IMPORT;
 
 class AnnotatorHelperTest {
 
@@ -106,7 +104,7 @@ class AnnotatorHelperTest {
     }
 
     private void commonCheckAnnotatedClassDeclaration(ClassOrInterfaceDeclaration toCheck) {
-        Collection<FieldDeclaration> fieldDeclarations = GrabberHelper.getApplicationPropertyFields(toCheck);
+        Collection<FieldDeclaration> fieldDeclarations = GrabberHelper.getNotKieAnnotatedApplicationPropertyFields(toCheck);
         fieldDeclarations.forEach(this::commonCheckAnnotatedFieldDeclaration);
     }
 

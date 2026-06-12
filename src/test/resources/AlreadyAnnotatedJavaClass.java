@@ -21,4 +21,15 @@ import org.kie.api.annotations.KieProperty;
 @KieProperty
 public class AlreadyAnnotatedJavaClass {
 
+    /**
+     * Some javadoc
+     */
+    @KieProperty
+    public static final String STRONGLY_TYPED_CONFIGURATION_KEY = "kogito.decisions.stronglytyped";
+
+    /**
+     * (boolean) enable/disable asynchronous collection of decision events; default to true
+     */
+    public static final String KOGITO_ADDON_TRACING_DECISION_ASYNC_ENABLED = "kogito.addon.tracing.decision.asyncEnabled";
+
 }

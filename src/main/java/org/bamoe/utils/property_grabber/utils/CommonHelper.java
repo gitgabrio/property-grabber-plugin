@@ -50,6 +50,9 @@ public class CommonHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(CommonHelper.class);
 
+    public static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
+    public static final String KIE_PROPERTY_IMPORT = "org.kie.api.annotations." + KIE_PROPERTY_ANNOTATION;
+
 
     static {
         StaticJavaParser.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);

@@ -20,6 +20,7 @@ package org.bamoe.utils.property_grabber.utils;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -43,6 +44,8 @@ import org.bamoe.utils.property_grabber.beans.AnnotationClassBean;
 import org.bamoe.utils.property_grabber.beans.AnnotationFieldBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_ANNOTATION;
 
 public class GrabberHelper {
 
@@ -91,9 +94,6 @@ public class GrabberHelper {
                     .withDefaultValueAnnotation(AnnotationFieldBean.builder("WithDefault").build())
                     .withPrefixAttribute("prefix").build());
 
-    static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
-    static final String KIE_PROPERTY_IMPORT = "org.kie." + KIE_PROPERTY_ANNOTATION;
-
     public static String getProperties(Path javaCode) {
         return getProperties(javaCode, TXT_PROPERTY_FORMAT);
     }
@@ -111,17 +111,44 @@ public class GrabberHelper {
     /*
         Default access modifier for testing purpose
      */
-    static Collection<FieldDeclaration> getApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
-        logger.debug("getApplicationPropertyFields {}", node.getName());
+    static Collection<FieldDeclaration> getNotKieAnnotatedApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
+        logger.debug("getNotKieAnnotatedApplicationPropertyFields {}", node.getName());
         return node.findAll(FieldDeclaration.class).stream()
-                .filter(FieldDeclaration::isStatic)
-                .filter(FieldDeclaration::isPublic)
-                .filter(FieldDeclaration::isFinal)
-                .filter(fieldDeclaration -> fieldDeclaration.getVariables().size() == 1 &&
-                        fieldDeclaration.getVariable(0).getInitializer().isPresent() &&
-                        fieldDeclaration.getVariable(0).getInitializer().get() instanceof StringLiteralExpr)
-                .filter(fieldDeclaration -> fieldDeclaration.getJavadoc().isPresent())
+                .filter(GrabberHelper::isValidPropertyField)
+                .filter(field -> !isKieAnnotated(field))
                 .toList();
+    }
+
+    /*
+        Default access modifier for testing purpose
+    */
+    static Collection<FieldDeclaration> getKieAnnotatedApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
+        logger.debug("getKieAnnotatedApplicationPropertyFields {}", node.getName());
+        List<FieldDeclaration> toReturn = node.findAll(FieldDeclaration.class)
+                .stream()
+                .filter(fieldDeclaration -> getFilteredAnnotation(fieldDeclaration, KIE_PROPERTY_ANNOTATION).isPresent())
+                .toList();
+        for (FieldDeclaration fieldDeclaration : toReturn) {
+            if (!isValidPropertyField(fieldDeclaration)) {
+                throw new IllegalArgumentException(
+                        "All fields annotated with @" + KIE_PROPERTY_ANNOTATION + " should be static, public, final, have a single variable with an initializer of type StringLiteralExpr and a JavaDoc. Offending field: " + fieldDeclaration);
+
+            }
+        }
+        return toReturn;
+    }
+
+    /*
+        Default access modifier for testing purpose
+    */
+    static boolean isValidPropertyField(FieldDeclaration fieldDeclaration) {
+        return fieldDeclaration.isStatic() &&
+                fieldDeclaration.isPublic() &&
+                fieldDeclaration.isFinal() &&
+                fieldDeclaration.getVariables().size() == 1 &&
+                fieldDeclaration.getVariable(0).getInitializer().isPresent() &&
+                fieldDeclaration.getVariable(0).getInitializer().get() instanceof StringLiteralExpr &&
+                fieldDeclaration.getJavadoc().isPresent();
     }
 
     /*
@@ -183,9 +210,7 @@ public class GrabberHelper {
         if (annotationName == null) {
             return Optional.empty();
         }
-        Optional<AnnotationExpr> annotation = methodDeclaration.getAnnotations().stream()
-                .filter(annotationExpr -> annotationExpr.getNameAsString().equals(annotationName))
-                .findFirst();
+        Optional<AnnotationExpr> annotation = getFilteredAnnotation(methodDeclaration, annotationName);
         return annotation.map(annt -> getAnnotatedValue(annt, annotationProperty));
     }
 
@@ -200,6 +225,17 @@ public class GrabberHelper {
         } else {
             throw new IllegalArgumentException("Unsupported annotation type: " + annotationExpr);
         }
+    }
+
+    private static boolean isKieAnnotated(FieldDeclaration fieldDeclaration) {
+        return fieldDeclaration.isAnnotationPresent(KIE_PROPERTY_ANNOTATION);
+    }
+
+    private static Optional<AnnotationExpr> getFilteredAnnotation(BodyDeclaration<?> bodyDeclaration, String annotationName) {
+        return bodyDeclaration.getAnnotations()
+                .stream()
+                .filter(annotationExpr -> annotationExpr.getNameAsString().equals(annotationName))
+                .findFirst();
     }
 
     private static String getAnnotatedValue(NormalAnnotationExpr annotationExpr, String annotationProperty) {
@@ -250,7 +286,9 @@ public class GrabberHelper {
 
     private static void populateProperties(ClassOrInterfaceDeclaration node, StringBuilder toPopulate, String propertyPattern) {
         logger.debug("populateProperties {} {}", node.getName(), toPopulate);
-        getApplicationPropertyFields(node)
+        getNotKieAnnotatedApplicationPropertyFields(node)
+                .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
+        getKieAnnotatedApplicationPropertyFields(node)
                 .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
         Optional<AnnotationExpr> configClassAnnotation = getConfigClassAnnotation(node);
         if (configClassAnnotation.isPresent()) {

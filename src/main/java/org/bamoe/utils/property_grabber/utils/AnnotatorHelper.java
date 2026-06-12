@@ -24,7 +24,6 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.printer.lexicalpreservation.LexicalPreservingPrinter;
 import java.io.PrintWriter;
-import java.io.Writer;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -32,13 +31,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_ANNOTATION;
+import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_IMPORT;
+
 public class AnnotatorHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotatorHelper.class);
-
-    static final String KIE_PROPERTY_ANNOTATION = "KieProperty";
-    static final String KIE_PROPERTY_IMPORT = "org.kie.api.annotations." + KIE_PROPERTY_ANNOTATION;
-
 
     public static void annotateProperties(Path javaCode) {
         logger.debug("annotateProperties {}", javaCode);
@@ -57,7 +55,6 @@ public class AnnotatorHelper {
     */
     static boolean annotateProperties(CompilationUnit compilationUnit) {
         logger.debug("annotateProperties {}", compilationUnit.getPrimaryTypeName());
-
         AtomicBoolean isAnnotationAdded = new AtomicBoolean(false);
         compilationUnit.findAll(ClassOrInterfaceDeclaration.class)
                 .forEach(cls -> isAnnotationAdded.set(annotateProperties(cls) || isAnnotationAdded.get()));
@@ -90,7 +87,7 @@ public class AnnotatorHelper {
     */
     static boolean annotateProperties(ClassOrInterfaceDeclaration node) {
         logger.debug("annotateProperties {}", node.getName());
-        Collection<FieldDeclaration> applicationPropertyFields = GrabberHelper.getApplicationPropertyFields(node);
+        Collection<FieldDeclaration> applicationPropertyFields = GrabberHelper.getNotKieAnnotatedApplicationPropertyFields(node);
         if (applicationPropertyFields.isEmpty()) {
             return false;
         } else {
