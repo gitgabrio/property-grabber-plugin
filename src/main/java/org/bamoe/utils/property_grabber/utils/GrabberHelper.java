@@ -69,12 +69,21 @@ public class GrabberHelper {
             %s
             --
             | %s
+            | %s
             | %s""";
 
     /**
-     * Map of the annotation name and its "name" attribute.
+     * Map of the annotation name and its "name" attribute used in fields.
      */
-    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_MAP = Map.of(
+    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_FIELDS_MAP = Map.of(
+            KIE_PROPERTY_ANNOTATION, AnnotationFieldBean.builder(KIE_PROPERTY_ANNOTATION)
+                    .withPropertyNameAttribute("")
+                    .withDefaultValueAttribute("defaultValue").withPropertyTypeAttribute("type").withAllowedValues("allowedValues").build());
+
+    /**
+     * Map of the annotation name and its "name" attribute used in methods.
+     */
+    static final Map<String, AnnotationFieldBean> ANNOTATION_NAME_METHODS_MAP = Map.of(
             "IfBuildProperty", AnnotationFieldBean.builder("IfBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withActivationAttribute("stringValue").build(),
             "UnlessBuildProperty", AnnotationFieldBean.builder("UnlessBuildProperty").withPropertyNameAttribute("name").withDefaultValue("false").withDeactivationAttribute("stringValue").build(),
             "ConfigProperty", AnnotationFieldBean.builder("ConfigProperty").withPropertyNameAttribute("name").build(),
@@ -122,25 +131,6 @@ public class GrabberHelper {
     /*
         Default access modifier for testing purpose
     */
-    static Collection<FieldDeclaration> getKieAnnotatedApplicationPropertyFields(ClassOrInterfaceDeclaration node) {
-        logger.debug("getKieAnnotatedApplicationPropertyFields {}", node.getName());
-        List<FieldDeclaration> toReturn = node.findAll(FieldDeclaration.class)
-                .stream()
-                .filter(fieldDeclaration -> getFilteredAnnotation(fieldDeclaration, KIE_PROPERTY_ANNOTATION).isPresent())
-                .toList();
-        for (FieldDeclaration fieldDeclaration : toReturn) {
-            if (!isValidPropertyField(fieldDeclaration)) {
-                throw new IllegalArgumentException(
-                        "All fields annotated with @" + KIE_PROPERTY_ANNOTATION + " should be static, public, final, have a single variable with an initializer of type StringLiteralExpr and a JavaDoc. Offending field: " + fieldDeclaration);
-
-            }
-        }
-        return toReturn;
-    }
-
-    /*
-        Default access modifier for testing purpose
-    */
     static boolean isValidPropertyField(FieldDeclaration fieldDeclaration) {
         return fieldDeclaration.isStatic() &&
                 fieldDeclaration.isPublic() &&
@@ -174,13 +164,30 @@ public class GrabberHelper {
     /*
       Default access modifier for testing purpose
     */
+    static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromFields(Node node) {
+        logger.debug("getApplicationPropertyAnnotationsFromFields {}", node);
+        return node.findAll(FieldDeclaration.class).stream()
+                .filter(methodDeclaration -> methodDeclaration.getAnnotations().stream()
+                        .anyMatch(annotationExpr -> ANNOTATION_NAME_FIELDS_MAP.containsKey(annotationExpr.getNameAsString())))
+                .collect(Collectors.toMap(
+                        methodDeclaration -> methodDeclaration.getAnnotations().stream()
+                                .filter(annotationExpr -> ANNOTATION_NAME_FIELDS_MAP.containsKey(annotationExpr.getNameAsString()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("No matching annotation: " + methodDeclaration)),
+                        methodDeclaration -> methodDeclaration
+                ));
+    }
+
+    /*
+      Default access modifier for testing purpose
+    */
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromMethods(Node node) {
         return node.findAll(MethodDeclaration.class).stream()
                 .filter(methodDeclaration -> methodDeclaration.getAnnotations().stream()
-                        .anyMatch(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString())))
+                        .anyMatch(annotationExpr -> ANNOTATION_NAME_METHODS_MAP.containsKey(annotationExpr.getNameAsString())))
                 .collect(Collectors.toMap(
                         methodDeclaration -> methodDeclaration.getAnnotations().stream()
-                                .filter(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString()))
+                                .filter(annotationExpr -> ANNOTATION_NAME_METHODS_MAP.containsKey(annotationExpr.getNameAsString()))
                                 .findFirst()
                                 .orElseThrow(() -> new IllegalArgumentException("No matching annotation: " + methodDeclaration)),
                         methodDeclaration -> methodDeclaration
@@ -193,10 +200,10 @@ public class GrabberHelper {
     static Map<AnnotationExpr, Node> getApplicationPropertyAnnotationsFromClass(Node node) {
         return node.findAll(ClassOrInterfaceDeclaration.class).stream()
                 .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getAnnotations().stream()
-                        .anyMatch(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString())))
+                        .anyMatch(annotationExpr -> ANNOTATION_NAME_METHODS_MAP.containsKey(annotationExpr.getNameAsString())))
                 .collect(Collectors.toMap(
                         classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getAnnotations().stream()
-                                .filter(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString()))
+                                .filter(annotationExpr -> ANNOTATION_NAME_METHODS_MAP.containsKey(annotationExpr.getNameAsString()))
                                 .findFirst()
                                 .orElseThrow(() -> new IllegalArgumentException("No matching annotation: " + classOrInterfaceDeclaration)),
                         classOrInterfaceDeclaration -> classOrInterfaceDeclaration
@@ -270,6 +277,7 @@ public class GrabberHelper {
     private static Map<AnnotationExpr, Node> getApplicationPropertyAnnotations(ClassOrInterfaceDeclaration node) {
         logger.debug("getApplicationPropertyAnnotations {}", node.getName());
         Map<AnnotationExpr, Node> toReturn = new java.util.HashMap<>();
+        toReturn.putAll(getApplicationPropertyAnnotationsFromFields(node));
         toReturn.putAll(getApplicationPropertyAnnotationsFromMethods(node));
         toReturn.putAll(getApplicationPropertyAnnotationsFromClass(node));
         return toReturn;
@@ -288,8 +296,6 @@ public class GrabberHelper {
         logger.debug("populateProperties {} {}", node.getName(), toPopulate);
         getNotKieAnnotatedApplicationPropertyFields(node)
                 .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
-        getKieAnnotatedApplicationPropertyFields(node)
-                .forEach(fldDclr -> populatePropertiesFromRawClass(fldDclr, toPopulate, propertyPattern));
         Optional<AnnotationExpr> configClassAnnotation = getConfigClassAnnotation(node);
         if (configClassAnnotation.isPresent()) {
             AnnotationExpr annotationExpr = configClassAnnotation.get();
@@ -306,7 +312,7 @@ public class GrabberHelper {
     private static void populatePropertiesFromRawClass(FieldDeclaration field, StringBuilder toPopulate, String propertyPattern) {
         logger.trace("populatePropertiesFromRawClass {} {}", field, toPopulate);
 
-        var name = field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + field)).asStringLiteralExpr();
+        var name = getPropertyNameFromField(field);
         var type = "";
         var defaultValue = "";
 
@@ -338,8 +344,12 @@ public class GrabberHelper {
                 }
             }
         }
+        var allowedValues = "";
+        toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue, allowedValues)).append(System.lineSeparator());
+    }
 
-        toPopulate.append(String.format(propertyPattern, name.asString(), desc, type, defaultValue)).append(System.lineSeparator());
+    private static String getPropertyNameFromField(FieldDeclaration field) {
+        return field.getVariable(0).getInitializer().orElseThrow(() -> new IllegalArgumentException("No Initializer: " + field)).asStringLiteralExpr().asString();
     }
 
     private static void populatePropertiesFromConfigurationClass(MethodDeclaration methodDeclaration, StringBuilder toPopulate, AnnotationClassBean annotationClassBean, String prefix,
@@ -363,17 +373,24 @@ public class GrabberHelper {
         // We need to get the information from JavaDoc, if there isn't any Java, we'll add the best we can
         var javadoc = methodDeclaration.getJavadocComment();
         var desc = javadoc.isPresent() ? javadoc.get().parse().getDescription().toText() : "";
-        toPopulate.append(String.format(propertyPattern, prefixedName, desc, type, defaultValue)).append(System.lineSeparator());
+        var allowedValues = "";
+        toPopulate.append(String.format(propertyPattern, prefixedName, desc, type, defaultValue, allowedValues)).append(System.lineSeparator());
     }
 
     private static void populateProperties(AnnotationExpr annotation, Node node, StringBuilder toPopulate, String propertyPattern) {
         logger.trace("populateProperties {} {}", annotation, toPopulate);
-        if (!ANNOTATION_NAME_MAP.containsKey(annotation.getNameAsString())) {
+        if (!ANNOTATION_NAME_METHODS_MAP.containsKey(annotation.getNameAsString()) && !ANNOTATION_NAME_FIELDS_MAP.containsKey(annotation.getNameAsString())) {
             logger.trace("Ignored annotation: {}", annotation);
             return;
         }
-        AnnotationFieldBean annotationFieldsBean = ANNOTATION_NAME_MAP.get(annotation.getNameAsString());
+        AnnotationFieldBean annotationFieldsBean = ANNOTATION_NAME_METHODS_MAP.get(annotation.getNameAsString());
+        if (annotationFieldsBean == null) {
+            annotationFieldsBean = ANNOTATION_NAME_FIELDS_MAP.get(annotation.getNameAsString());
+        }
         var name = getAnnotatedValue(annotation, annotationFieldsBean.getPropertyNameAttribute());
+        if (name == null && node instanceof FieldDeclaration fieldDeclaration) {
+            name = getPropertyNameFromField(fieldDeclaration);
+        }
         String defaultValue = null;
         if (name.contains("{") && name.contains("}")) {
             name = name.substring(name.indexOf("{") + 1, name.indexOf("}"));
@@ -383,6 +400,9 @@ public class GrabberHelper {
             }
         }
         var type = "";
+        if (annotationFieldsBean.getPropertyTypeAttribute() != null) {
+            type = getAnnotatedValue(annotation, annotationFieldsBean.getPropertyTypeAttribute());
+        }
         if ((defaultValue == null || defaultValue.isBlank()) && annotationFieldsBean.getDefaultValueAttribute() != null) {
             defaultValue = getAnnotatedValue(annotation, annotationFieldsBean.getDefaultValueAttribute());
         }
@@ -390,8 +410,14 @@ public class GrabberHelper {
             defaultValue = annotationFieldsBean.getDefaultValue() != null ? annotationFieldsBean.getDefaultValue() : "";
         }
         var desc = getDescription(annotationFieldsBean, node);
-
-        toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue)).append(System.lineSeparator());
+        if ((desc == null || desc.isBlank() && annotation.getNameAsString().equals(KIE_PROPERTY_ANNOTATION)) && node instanceof FieldDeclaration fieldDeclaration) {
+            desc = fieldDeclaration.getJavadoc().isPresent() ? fieldDeclaration.getJavadoc().get().toText().trim() : "";
+        }
+        var allowedValues = "";
+        if (annotationFieldsBean.getAllowedValuesAttribute() != null) {
+            allowedValues = getAnnotatedValue(annotation, annotationFieldsBean.getAllowedValuesAttribute());
+        }
+        toPopulate.append(String.format(propertyPattern, name, desc, type, defaultValue, allowedValues)).append(System.lineSeparator());
     }
 
     private static String getDescription(AnnotationFieldBean annotationFieldsBean, Node node) {
@@ -409,7 +435,6 @@ public class GrabberHelper {
         } else if (node instanceof ClassOrInterfaceDeclaration classOrInterfaceDeclaration) {
             toReturn = "Property used to instantiate " + classOrInterfaceDeclaration.getName();
         }
-
         if (propertyActivationValue.isPresent() && !propertyActivationValue.get().isBlank()) {
             toReturn += " (only active when \"" + propertyActivationValue.get() + "\")";
         }

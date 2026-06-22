@@ -18,13 +18,12 @@
  */
 import org.kie.api.annotations.KieProperty;
 
-@KieProperty
 public class AlreadyAnnotatedJavaClass {
 
     /**
      * Some javadoc
      */
-    @KieProperty
+    @KieProperty(type = "boolean", defaultValue = "false", allowedValues="true,false")
     public static final String STRONGLY_TYPED_CONFIGURATION_KEY = "kogito.decisions.stronglytyped";
 
     /**

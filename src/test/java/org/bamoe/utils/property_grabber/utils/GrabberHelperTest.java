@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.bamoe.utils.property_grabber.utils.CommonHelper.KIE_PROPERTY_ANNOTATION;
-import static org.bamoe.utils.property_grabber.utils.GrabberHelper.ANNOTATION_NAME_MAP;
+import static org.bamoe.utils.property_grabber.utils.GrabberHelper.ANNOTATION_NAME_METHODS_MAP;
 
 class GrabberHelperTest {
 
@@ -74,7 +74,7 @@ class GrabberHelperTest {
         commonCheckProperties(expected, TESTING_CLASS_FILE);
         //--
         expected = Arrays.asList(
-                "Config Name: kogito.decisions.stronglytyped | Description: Some javadoc | Type:  | Default:",
+                "Config Name: kogito.decisions.stronglytyped | Description: Some javadoc | Type: boolean | Default: false",
                 "Config Name: kogito.addon.tracing.decision.asyncEnabled | Description: enable/disable asynchronous collection of decision events | Type: boolean | Default: true");
         commonCheckProperties(expected, ALREADY_ANNOTATED_CLASS_FILE);
     }
@@ -88,41 +88,47 @@ class GrabberHelperTest {
                         "kafka bootstrap server address\n" +
                         "--\n" +
                         "| string\n" +
-                        "| ",
+                        "| \n"+
+                        "|",
                 "a| `kogito.addon.tracing.decision.kafka.topic.name`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "name of the decision topic\n" +
                         "--\n" +
                         "| String\n" +
-                        "| Value of `kogito-tracing-decision`",
+                        "| Value of `kogito-tracing-decision`\n" +
+                        "|",
                 "a| `kogito.addon.tracing.decision.kafka.topic.partitions`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "number of decision topic partitions\n" +
                         "--\n" +
                         "| integer\n" +
-                        "| 1",
+                        "| 1\n"+
+                        "|",
                 "a| `kogito.addon.tracing.decision.kafka.topic.replicationFactor`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "number of decision topic replication factor\n" +
                         "--\n" +
                         "| integer\n" +
-                        "| 1",
+                        "| 1\n"+
+                        "|",
                 "a| `kogito.addon.tracing.decision.asyncEnabled`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "enable/disable asynchronous collection of decision events\n" +
                         "--\n" +
                         "| boolean\n" +
-                        "| true",
+                        "| true\n" +
+                        "| ",
                 "a| `quarkus.kogito.data-index.graphql.ui.always-include`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "Property used to instantiate String (only active when \"true\")\n" +
                         "--\n" +
                         "| \n" +
+                        "| false\n" +
                         "|",
                 "a| `(Constants.MONITORING_RULE_USE_DEFAULT)`\n" +
                         "[.description]\n" +
@@ -130,19 +136,22 @@ class GrabberHelperTest {
                         "Property used to instantiate String (only active when \"true\")\n" +
                         "--\n" +
                         "| \n" +
-                        "|",
+                        "| false\n" +
+                        "| ",
                 "a| `kogito.data-index.blocking`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "Property used to instantiate String (only active when not \"true\")\n" +
                         "--\n" +
                         "| \n" +
-                        "|",
+                        "| false\n" +
+                        "| ",
                 "a| `kogito.jobs-service.url`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "Property used to instantiate String\n" +
                         "--\n" +
+                        "| \n" +
                         "| \n" +
                         "|",
                 "a| `kogito.jobs-service.port`\n" +
@@ -151,14 +160,16 @@ class GrabberHelperTest {
                         "Property used to instantiate String (only active when \"true\")\n" +
                         "--\n" +
                         "| \n" +
-                        "| true",
+                        "| true\n" +
+                        "| ",
                 "a| `kogito.events.processinstances.enabled`\n" +
                         "[.description]\n" +
                         "--\n" +
                         "Property used to instantiate String\n" +
                         "--\n" +
                         "| \n" +
-                        "| true");
+                        "| true\n" +
+                        "|");
         commonCheckPropertiesAsADoc(expected, TESTING_CLASS_FILE);
         //--
         expected = Arrays.asList(
@@ -174,8 +185,9 @@ class GrabberHelperTest {
                         "--\n" +
                         "Some javadoc\n" +
                         "--\n" +
-                        "| \n" +
-                        "|");
+                        "| boolean\n" +
+                        "| false\n" +
+                        "| true,false");
         commonCheckPropertiesAsADoc(expected, ALREADY_ANNOTATED_CLASS_FILE);
     }
 
@@ -226,7 +238,7 @@ class GrabberHelperTest {
                 .stream().filter(cls -> cls.getName().toString().equals(ALREADY_ANNOTATED_CLASS_NAME))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(ALREADY_ANNOTATED_CLASS_NAME + " not found"));
-        Collection<FieldDeclaration> retrieved = GrabberHelper.getKieAnnotatedApplicationPropertyFields(classOrInterfaceDeclaration);
+        Map<AnnotationExpr, Node> retrieved = GrabberHelper.getApplicationPropertyAnnotationsFromFields(classOrInterfaceDeclaration);
         assertThat(retrieved).isNotNull().hasSize(1); // Magic number: it must reflect what is written inside AlreadyAnnotatedJavaClass.java
         retrieved.forEach(this::checkKieAnnotatedApplicationPropertyFields);
     }
@@ -390,12 +402,10 @@ class GrabberHelperTest {
         retrieved.keySet().forEach(this::checkApplicationPropertyAnnotation);
     }
 
-    private void checkKieAnnotatedApplicationPropertyFields(FieldDeclaration toCheck) {
-        assertThat(toCheck).isNotNull();
-        assertThat(toCheck.getAnnotations()
-                .stream()
-                .anyMatch(annotationExpr -> annotationExpr.getNameAsString().equals(KIE_PROPERTY_ANNOTATION))).isTrue();
-        checkApplicationPropertyField(toCheck);
+    private void checkKieAnnotatedApplicationPropertyFields(AnnotationExpr annotationExpr, Node toCheck) {
+        assertThat(toCheck).isNotNull().isInstanceOf(FieldDeclaration.class);
+        assertThat(annotationExpr.getNameAsString().equals(KIE_PROPERTY_ANNOTATION)).isTrue();
+        checkApplicationPropertyField((FieldDeclaration) toCheck);
     }
 
     private void checkApplicationPropertyField(FieldDeclaration toCheck) {
@@ -409,7 +419,7 @@ class GrabberHelperTest {
 
     private void checkApplicationPropertyAnnotation(AnnotationExpr toCheck) {
         assertThat(toCheck).isNotNull()
-                .matches(annotationExpr -> ANNOTATION_NAME_MAP.containsKey(annotationExpr.getNameAsString()));
+                .matches(annotationExpr -> ANNOTATION_NAME_METHODS_MAP.containsKey(annotationExpr.getNameAsString()));
     }
 
     private boolean hasExactlyOneStringInitializer(FieldDeclaration toCheck) {

@@ -21,9 +21,10 @@ package org.bamoe.utils.property_grabber.beans;
 public final class AnnotationFieldBean {
     private final String annotationName;
     private String propertyNameAttribute;
-    private String propertyType;
+    private String propertyTypeAttribute;
     private String defaultValue;
     private String defaultValueAttribute;
+    private String allowedValuesAttribute;
     private String activationAttribute;
     private String deactivationAttribute;
     private String prefixAttribute;
@@ -44,8 +45,8 @@ public final class AnnotationFieldBean {
         return propertyNameAttribute;
     }
 
-    public String getPropertyType() {
-        return propertyType;
+    public String getPropertyTypeAttribute() {
+        return propertyTypeAttribute;
     }
 
     public String getDefaultValue() {
@@ -54,6 +55,10 @@ public final class AnnotationFieldBean {
 
     public String getDefaultValueAttribute() {
         return defaultValueAttribute;
+    }
+
+    public String getAllowedValuesAttribute() {
+        return allowedValuesAttribute;
     }
 
     public String getActivationAttribute() {
@@ -76,13 +81,23 @@ public final class AnnotationFieldBean {
             toReturn = new AnnotationFieldBean(annotationName);
         }
 
+        /**
+         * The attribute pointing to the property name, if any
+         * @param propertyNameAttribute
+         * @return
+         */
         public Constructor withPropertyNameAttribute(String propertyNameAttribute) {
             toReturn.propertyNameAttribute = propertyNameAttribute;
             return this;
         }
 
-        public Constructor withPropertyType(String propertyType) {
-            toReturn.propertyType = propertyType;
+        /**
+         * The attribute pointing to the property type, if any
+         * @param propertyTypeAttribute
+         * @return
+         */
+        public Constructor withPropertyTypeAttribute(String propertyTypeAttribute) {
+            toReturn.propertyTypeAttribute = propertyTypeAttribute;
             return this;
         }
 
@@ -97,7 +112,7 @@ public final class AnnotationFieldBean {
         }
 
         /**
-         * The "attribute pointing to the default value
+         * The attribute pointing to the default value
          * @param defaultValueAttribute
          * @return
          */
@@ -106,16 +121,41 @@ public final class AnnotationFieldBean {
             return this;
         }
 
+        /**
+         * The attribute pointing to the allowed values, if any
+         * @param allowedValues
+         * @return
+         */
+        public Constructor withAllowedValues(String allowedValues) {
+            toReturn.allowedValuesAttribute = allowedValues;
+            return this;
+        }
+
+        /**
+         * The attribute pointing to the activation attribute, if any
+         * @param activationAttribute
+         * @return
+         */
         public Constructor withActivationAttribute(String activationAttribute) {
             toReturn.activationAttribute = activationAttribute;
             return this;
         }
 
+        /**
+         * The attribute pointing to the deactivation attribute, if any
+         * @param deactivationAttribute
+         * @return
+         */
         public Constructor withDeactivationAttribute(String deactivationAttribute) {
             toReturn.deactivationAttribute = deactivationAttribute;
             return this;
         }
 
+        /**
+         * The attribute pointing to the property name prefixe, if any
+         * @param prefixAttribute
+         * @return
+         */
         public Constructor withPrefixAttribute(String prefixAttribute) {
             toReturn.prefixAttribute = prefixAttribute;
             return this;
